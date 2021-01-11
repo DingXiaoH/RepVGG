@@ -1,7 +1,11 @@
-# RepVGG
+# RepVGG: Making VGG-style ConvNets Great Again
+
+This is a super simple ConvNet architecture that achieves over 80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU! 
 
 The training code and pretrained models will be updated upon the announcement of arxiv preprint (in two days).
+
 Star me if you are interested.
+
 
 # ImageNet training settings:
 
