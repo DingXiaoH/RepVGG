@@ -9,7 +9,7 @@ Star me if you are interested.
 
 # ImageNet training settings:
 
-We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, the global batch size was 256. Weight decay=1e-4, no weight decay on bias, bn.gamma and bn.beta. The data preprocssing is just the same as the PyTorch official example:
+We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.weight and bn.bias), and the same simple data preprocssing as the PyTorch official example:
 ```
             trans = transforms.Compose([
                 transforms.RandomResizedCrop(224),
