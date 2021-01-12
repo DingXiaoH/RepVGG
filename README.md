@@ -66,3 +66,9 @@ deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_d
 Q: How should I use the pretrained RepVGG models for other tasks?
 
 A: Finetuning the training-time RepVGG models on your datasets delivers the best performance. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation datasets. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias parameters can be discarded), but the performance may be lower.
+
+Q: How to do the quantization?
+
+A1: Post-training quantization. After training and conversion, you can quantize the converted model with any post-training quantization method. Then you can insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
+
+A2: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (kernel3 / std3 * gamma3 + kernel1 / std1 * gamma1 + identity / std0 * gamma0). 
