@@ -29,12 +29,12 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-B2-trai
 | RepVGG-A0   | 72.41 	|  	uploading | uploading | |
 | RepVGG-A1   | 74.46 	|  	uploading | uploading | |
 | RepVGG-B0   | 75.14 	|  	uploading | uploading ||
-| RepVGG-A2   | 76.48 	|  	uploading | uploading ||
-| RepVGG-B1g4   | 77.58 |  	uploading | uploading ||
-| RepVGG-B1g2   | 77.78 |  	uploading | uploading ||
-| RepVGG-B1   | 78.37 |  	uploading | uploading ||
-| RepVGG-B2g4   | 78.50 |  	uploading | uploading ||
-| RepVGG-B2   | 78.78 |  	uploading | uploading ||
+| RepVGG-A2   | 76.48 	|  	https://drive.google.com/file/d/1PvtYTOX4gd-1VHX8LoT7s6KIyfTKOf8G/view?usp=sharing | uploading ||
+| RepVGG-B1g4   | 77.58 |  	https://drive.google.com/file/d/1WXxhyRDTgUjgkofRV1bLnwzTsFWRwZ0k/view?usp=sharing | uploading ||
+| RepVGG-B1g2   | 77.78 |  	https://drive.google.com/file/d/1PL-m9n3g0CEPrSpf3KwWEOf9_ZG-Ux1Z/view?usp=sharing | uploading ||
+| RepVGG-B1   | 78.37 |  	https://drive.google.com/file/d/1VlCfXXiaJjNjzQBy3q7C3H2JcxoL0fms/view?usp=sharing | uploading ||
+| RepVGG-B2g4   | 78.50 |  	https://drive.google.com/file/d/1LZ61o5XH6u1n3_tXIgKII7XqKoqqracI/view?usp=sharing | uploading ||
+| RepVGG-B2   | 78.78 |  	https://drive.google.com/file/d/1cFgWJkmf9U1L1UmJsA8UT__kyd3xuY_y/view?usp=sharing | uploading ||
 
 
 # Convert the training-time models into inference-time
