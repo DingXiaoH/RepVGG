@@ -1,4 +1,4 @@
-# RepVGG: Making VGG-style ConvNets Great Again
+# RepVGG: Making VGG-style ConvNets Great Again (PyTorch)
 
 This is a super simple ConvNet architecture that achieves over 80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU! This repo contains the pretrained models, code for building the model, training, and the conversion from training-time model to inference-time.
 
@@ -39,10 +39,19 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-B2-trai
 
 # Convert the training-time models into inference-time
 
-You can convert a trained model into the inference-time structure by running
+You can convert a trained model into the inference-time structure with
 ```
-TODO
+python convert.py [weights file of the training-time model to load] [path to save] -a [model name]
 ```
+For example,
+```
+python convert.py RepVGG-B2-train.pth RepVGG-B2-deploy.pth -a RepVGG-B2
+```
+Then you can test the inference-time model by
+```
+python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-deploy.pth -a RepVGG-B2
+```
+Note that the "deploy" arg builds a inference-time model.
 
 
 # ImageNet training settings
