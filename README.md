@@ -72,6 +72,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
+The training script in this repo has not been tested. Will do it tomorrow.
             
 
 # Use like this in your own code
@@ -81,4 +82,6 @@ train train_model ...
 deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
 ```
 
-# FAQ
+# FAQs
+
+1. 
