@@ -15,7 +15,7 @@ We present a simple but powerful architecture of convolutional neural network, w
 
 # Use our pretrained models
 
-The following are the models trained on ImageNet. For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
+You may download our pretrained models from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
@@ -24,17 +24,18 @@ Here "train" indicates the training-time architecture. For example,
 python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
 ```
 
-| Model name       | Top-1 acc           | Google Drive  | Baidu Cloud | Baidu access code |
-| -------------|:-------------:| -----:| -----:| -----:|
-| RepVGG-A0   | 72.41 	|  	uploading | uploading | |
-| RepVGG-A1   | 74.46 	|  	uploading | uploading | |
-| RepVGG-B0   | 75.14 	|  	uploading | uploading ||
-| RepVGG-A2   | 76.48 	|  	https://drive.google.com/file/d/1PvtYTOX4gd-1VHX8LoT7s6KIyfTKOf8G/view?usp=sharing | uploading ||
-| RepVGG-B1g4   | 77.58 |  	https://drive.google.com/file/d/1WXxhyRDTgUjgkofRV1bLnwzTsFWRwZ0k/view?usp=sharing | uploading ||
-| RepVGG-B1g2   | 77.78 |  	https://drive.google.com/file/d/1PL-m9n3g0CEPrSpf3KwWEOf9_ZG-Ux1Z/view?usp=sharing | uploading ||
-| RepVGG-B1   | 78.37 |  	https://drive.google.com/file/d/1VlCfXXiaJjNjzQBy3q7C3H2JcxoL0fms/view?usp=sharing | uploading ||
-| RepVGG-B2g4   | 78.50 |  	https://drive.google.com/file/d/1LZ61o5XH6u1n3_tXIgKII7XqKoqqracI/view?usp=sharing | uploading ||
-| RepVGG-B2   | 78.78 |  	https://drive.google.com/file/d/1cFgWJkmf9U1L1UmJsA8UT__kyd3xuY_y/view?usp=sharing | uploading ||
+| Model name       | Top-1 acc           | Train epochs  | Speed |
+| -------------|:-------------:| -----| -----| 
+| RepVGG-A0   | 72.41 	|  120	 | |
+| RepVGG-A1   | 74.46 	|  120	 | |
+| RepVGG-B0   | 75.14 	|  120       ||
+| RepVGG-A2   | 76.48 	|  120 ||
+| RepVGG-B1g4   | 77.58 |  120      ||
+| RepVGG-B1g2   | 77.78 |   ||
+| RepVGG-B1   | 78.37 |    ||
+| RepVGG-B2g4   | 78.50 |  ||
+| RepVGG-B2   | 78.78 |   ||
+
 
 
 # Convert the training-time models into inference-time
