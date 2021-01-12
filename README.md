@@ -15,7 +15,7 @@ We present a simple but powerful architecture of convolutional neural network, w
 
 # Use our pretrained models
 
-You may download our pretrained models from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
+You may download our pretrained models from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg").For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
@@ -25,16 +25,21 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-B2-trai
 ```
 
 | Model name       | Top-1 acc           | Train epochs  | Speed |
-| -------------|:-------------:| -----| -----| 
-| RepVGG-A0   | 72.41 	|  120	 | |
-| RepVGG-A1   | 74.46 	|  120	 | |
-| RepVGG-B0   | 75.14 	|  120       ||
-| RepVGG-A2   | 76.48 	|  120 ||
-| RepVGG-B1g4   | 77.58 |  120      ||
-| RepVGG-B1g2   | 77.78 |   ||
-| RepVGG-B1   | 78.37 |    ||
-| RepVGG-B2g4   | 78.50 |  ||
-| RepVGG-B2   | 78.78 |   ||
+| -------------|:-------------| -----| -----| 
+| RepVGG-A0   | 72.41 	|  120	 | 3256|
+| RepVGG-A1   | 74.46 	|  120	 | 2339|
+| RepVGG-B0   | 75.14 	|  120       | 1817|
+| RepVGG-A2   | 76.48 	|  120       | 1322|
+| RepVGG-B1g4   | 77.58 |  120       | 868 |
+| RepVGG-B1g2   | 77.78 |  120      | 792|
+| RepVGG-B1   | 78.37 |    120      | 685|
+| RepVGG-B2g4   | 78.50 |  120      | 581|
+| RepVGG-B2g4   | 79.38 |  200      | 581|
+| RepVGG-B2   | 78.78 |    120      | 460|
+| RepVGG-B3g4   | 80.21 |    200      | 464|
+| RepVGG-B3   | 80.52 |    200      | 363|
+
+
 
 
 
