@@ -2,8 +2,6 @@
 
 This is a super simple ConvNet architecture that achieves over 80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU! This repo contains the pretrained models, code for building the model, training, and the conversion from training-time model to inference-time.
 
-You can use repvgg.py to build models and train with your code. I am working on an extremely simple training script in the style of the pytorch official example. I am uploading the pretrained weights.
-
 # Abstract
 
 We present a simple but powerful architecture of convolutional neural network, which has a VGG-like inference-time body composed of nothing but a stack of 3x3 convolution and ReLU, while the training-time model has a multi-branch topology. Such decoupling of the training-time and inference-time architecture is realized by a structural re-parameterization technique so that the model is named RepVGG. On ImageNet, RepVGG reaches over 80\% top-1 accuracy, which is the first time for a plain model, to the best of our knowledge. On NVIDIA 1080Ti GPU, RepVGG models run 83% faster than ResNet-50 or 101% faster than ResNet-101 with higher accuracy and show favorable accuracy-speed trade-off compared to the state-of-the-art models like EfficientNet and RegNet.
@@ -23,24 +21,6 @@ Here "train" indicates the training-time architecture. For example,
 ```
 python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
 ```
-
-| Model name       | Top-1 acc           | Train epochs  | Speed |
-| -------------|:-------------| -----| -----| 
-| RepVGG-A0   | 72.41 	|  120	 | 3256|
-| RepVGG-A1   | 74.46 	|  120	 | 2339|
-| RepVGG-B0   | 75.14 	|  120       | 1817|
-| RepVGG-A2   | 76.48 	|  120       | 1322|
-| RepVGG-B1g4   | 77.58 |  120       | 868 |
-| RepVGG-B1g2   | 77.78 |  120      | 792|
-| RepVGG-B1   | 78.37 |    120      | 685|
-| RepVGG-B2g4   | 78.50 |  120      | 581|
-| RepVGG-B2g4   | 79.38 |  200      | 581|
-| RepVGG-B2   | 78.78 |    120      | 460|
-| RepVGG-B3g4   | 80.21 |    200      | 464|
-| RepVGG-B3   | 80.52 |    200      | 363|
-
-
-
 
 
 # Convert the training-time models into inference-time
