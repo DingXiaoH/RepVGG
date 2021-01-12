@@ -24,7 +24,7 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-B2-trai
 
 # Convert the training-time models into inference-time
 
-You can convert a trained model into the inference-time structure with
+You may convert a trained model into the inference-time structure with
 ```
 python convert.py [weights file of the training-time model to load] [path to save] -a [model name]
 ```
@@ -32,11 +32,11 @@ For example,
 ```
 python convert.py RepVGG-B2-train.pth RepVGG-B2-deploy.pth -a RepVGG-B2
 ```
-Then you can test the inference-time model by
+Then you may test the inference-time model by
 ```
 python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-deploy.pth -a RepVGG-B2
 ```
-Note that the "deploy" arg builds a inference-time model.
+Note that the argument "deploy" builds a inference-time model.
 
 
 # ImageNet training settings
@@ -63,11 +63,11 @@ deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_d
 
 # FAQs
 
-Q: How should I use the pretrained RepVGG models for other tasks?
+Q: How to use the pretrained RepVGG models for other tasks?
 
-A: Finetuning the training-time RepVGG models on your datasets delivers the best performance. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation datasets. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias parameters can be discarded), but the performance may be lower.
+A: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
-Q: How to do the quantization?
+Q: How to quantize a RepVGG model?
 
 A1: Post-training quantization. After training and conversion, you can quantize the converted model with any post-training quantization method. Then you can insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
 
