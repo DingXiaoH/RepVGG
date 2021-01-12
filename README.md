@@ -24,17 +24,17 @@ Here "train" indicates the training-time architecture. For example,
 python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
 ```
 
-| Model        | Top-1 acc           | Google Drive  | Baidu Cloud |
-| -------------|:-------------:| -----:| -----:|
-| RepVGG-A0   | 72.41 	|  	uploading | uploading |
-| RepVGG-A1   | 74.46 	|  	uploading | uploading |
-| RepVGG-B0   | 75.14 	|  	uploading | uploading |
-| RepVGG-A2   | 76.48 	|  	uploading | uploading |
-| RepVGG-B1g4   | 77.58 |  	uploading | uploading |
-| RepVGG-B1g2   | 77.78 |  	uploading | uploading |
-| RepVGG-B1   | 78.37 |  	uploading | uploading |
-| RepVGG-B2g4   | 78.50 |  	uploading | uploading |
-| RepVGG-B2   | 78.78 |  	uploading | uploading |
+| Model name       | Top-1 acc           | Google Drive  | Baidu Cloud | Baidu access code |
+| -------------|:-------------:| -----:| -----:| -----:|
+| RepVGG-A0   | 72.41 	|  	uploading | uploading | |
+| RepVGG-A1   | 74.46 	|  	uploading | uploading | |
+| RepVGG-B0   | 75.14 	|  	uploading | uploading ||
+| RepVGG-A2   | 76.48 	|  	uploading | uploading ||
+| RepVGG-B1g4   | 77.58 |  	uploading | uploading ||
+| RepVGG-B1g2   | 77.78 |  	uploading | uploading ||
+| RepVGG-B1   | 78.37 |  	uploading | uploading ||
+| RepVGG-B2g4   | 78.50 |  	uploading | uploading ||
+| RepVGG-B2   | 78.78 |  	uploading | uploading ||
 
 
 # Convert the training-time models into inference-time
