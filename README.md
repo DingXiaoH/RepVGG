@@ -12,7 +12,7 @@ We present a simple but powerful architecture of convolutional neural network, w
 
 # Use our pretrained models
 
-You may download our pretrained models from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg").For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
+You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
@@ -63,4 +63,6 @@ deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_d
 
 # FAQs
 
-1. 
+Q: How should I use the pretrained RepVGG models for other tasks?
+
+A: Finetuning the training-time RepVGG models on your datasets delivers the best performance. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation datasets. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias parameters can be discarded), but the performance may be lower.
