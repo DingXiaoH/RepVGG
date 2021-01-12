@@ -2,6 +2,7 @@
 
 This is a super simple ConvNet architecture that achieves over 80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU! This repo contains the pretrained models, code for building the model, training, and the conversion from training-time model to inference-time.
 
+You can use repvgg.py to build models and train with your code. I am working on an extremely simple training script in the style of the pytorch official example.
 
 # Abstract
 
