@@ -195,14 +195,30 @@ def create_RepVGG_B3g4(deploy=False):
                   width_multiplier=[3, 3, 3, 5], override_groups_map=g4_map, deploy=deploy)
 
 
-
+func_dict = {
+'RepVGG-A0': create_RepVGG_A0,
+'RepVGG-A1': create_RepVGG_A1,
+'RepVGG-A2': create_RepVGG_A2,
+'RepVGG-B0': create_RepVGG_B0,
+'RepVGG-B1': create_RepVGG_B1,
+'RepVGG-B1g2': create_RepVGG_B1g2,
+'RepVGG-B1g4': create_RepVGG_B1g4,
+'RepVGG-B2': create_RepVGG_B2,
+'RepVGG-B2g2': create_RepVGG_B2g2,
+'RepVGG-B2g4': create_RepVGG_B2g4,
+'RepVGG-B3': create_RepVGG_B3,
+'RepVGG-B3g2': create_RepVGG_B3g2,
+'RepVGG-B3g4': create_RepVGG_B3g4,
+}
+def get_RepVGG_func_by_name(name):
+    return func_dict[name]
 
 
 #   Use like this:
 #   train_model = create_RepVGG_A0(deploy=False)
 #   train train_model
 #   deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
-def repvgg_convert(model:torch.nn.Module, build_func, save_path=None):
+def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
     converted_weights = {}
     for name, module in model.named_modules():
         if hasattr(module, 'repvgg_convert'):
