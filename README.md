@@ -16,7 +16,7 @@ We present a simple but powerful architecture of convolutional neural network, w
 
 # Use our pretrained models
 
-You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You can test the accuracy by running
+You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You may test the accuracy by running
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
@@ -55,7 +55,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
-The training script in this repo has not been tested. Will do it tomorrow.
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on bias and BN parameters. You may find these code segments useful for your training code. This training script has not been tested because I don't have raw ImageNet training data. I would really appreciate it if you share with me your re-implementation results with this script.
             
 
 # Use like this in your own code
@@ -73,6 +73,26 @@ A: It is better to finetune the training-time RepVGG models on your datasets. Th
 
 Q: How to quantize a RepVGG model?
 
-A1: Post-training quantization. After training and conversion, you can quantize the converted model with any post-training quantization method. Then you can insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
+A1: Post-training quantization. After training and conversion, you may quantize the converted model with any post-training quantization method. Then you may insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
 
 A2: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py). 
+
+
+## Contact
+dxh17@mails.tsinghua.edu.cn
+
+Google Scholar Profile: https://scholar.google.com/citations?user=CIjw0KoAAAAJ&hl=en
+
+My open-sourced papers and repos: 
+
+**Simple and powerful VGG-style ConvNet architecture** (preprint, 2021): [RepVGG: Making VGG-style ConvNets Great Again](https://arxiv.org/abs/2101.03697)      (https://github.com/DingXiaoH/RepVGG)
+
+**State-of-the-art** channel pruning (preprint, 2020): [Lossless CNN Channel Pruning via Decoupling Remembering and Forgetting](https://arxiv.org/abs/2007.03260) (https://github.com/DingXiaoH/ResRep)
+
+CNN component (ICCV 2019): [ACNet: Strengthening the Kernel Skeletons for Powerful CNN via Asymmetric Convolution Blocks](http://openaccess.thecvf.com/content_ICCV_2019/papers/Ding_ACNet_Strengthening_the_Kernel_Skeletons_for_Powerful_CNN_via_Asymmetric_ICCV_2019_paper.pdf) (https://github.com/DingXiaoH/ACNet)
+
+Channel pruning (CVPR 2019): [Centripetal SGD for Pruning Very Deep Convolutional Networks with Complicated Structure](http://openaccess.thecvf.com/content_CVPR_2019/html/Ding_Centripetal_SGD_for_Pruning_Very_Deep_Convolutional_Networks_With_Complicated_CVPR_2019_paper.html) (https://github.com/DingXiaoH/Centripetal-SGD)
+
+Channel pruning (ICML 2019): [Approximated Oracle Filter Pruning for Destructive CNN Width Optimization](http://proceedings.mlr.press/v97/ding19a.html) (https://github.com/DingXiaoH/AOFP)
+
+Unstructured pruning (NeurIPS 2019): [Global Sparse Momentum SGD for Pruning Very Deep Neural Networks](http://papers.nips.cc/paper/8867-global-sparse-momentum-sgd-for-pruning-very-deep-neural-networks.pdf) (https://github.com/DingXiaoH/GSM-SGD)
