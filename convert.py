@@ -28,7 +28,7 @@ def convert():
         else:
             train_model.load_state_dict(checkpoint)
     else:
-        print("=> no checkpoint found at '{}'".format(args.weights))
+        print("=> no checkpoint found at '{}'".format(args.load))
 
     repvgg_model_convert(train_model, build_func=repvgg_build_func, save_path=args.save)
 

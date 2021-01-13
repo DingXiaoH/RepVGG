@@ -60,9 +60,10 @@ class RepVGGBlock(nn.Module):
             eps = branch.bn.eps
         else:
             assert isinstance(branch, nn.BatchNorm2d)
-            kernel = np.zeros((self.in_channels, self.in_channels, 3, 3))
+            input_dim = self.in_channels // self.groups
+            kernel = np.zeros((self.in_channels, input_dim, 3, 3))
             for i in range(self.in_channels):
-                kernel[i, i, 1, 1] = 1
+                kernel[i, i % input_dim, 1, 1] = 1
             running_mean = branch.running_mean.cpu().numpy()
             running_var = branch.running_var.cpu().numpy()
             gamma = branch.weight.detach().cpu().numpy()
@@ -86,6 +87,8 @@ class RepVGGBlock(nn.Module):
         kernel1x1, bias1x1 = self._fuse_bn(self.rbr_1x1)
         kernelid, biasid = self._fuse_bn(self.rbr_identity)
         return kernel3x3 + self._pad_1x1_to_3x3(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
+
+
 
 
 
