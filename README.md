@@ -60,9 +60,18 @@ The multi-processing training script in this repo is based on the [official PyTo
 
 # Use like this in your own code
 ```
+from repvgg import repvgg_model_convert, create_RepVGG_A0
 train_model = create_RepVGG_A0(deploy=False)
-train train_model ...
-deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+train_model.load_state_dict(torch.load('RepVGG-A0-train.pth'))          # or train from scratch
+# do whatever you want with train_model
+deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+# do whatever you want with deploy_model
+```
+or
+```
+deploy_model = create_RepVGG_A0(deploy=True)
+deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
+# do whatever you want with deploy_model
 ```
 
 # FAQs
