@@ -55,7 +55,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
-The training script in this repo has not been tested. Will do it tomorrow.
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on bias and BN parameters. You may find these code segments useful for your training code. This training script has not been tested because I don't have raw ImageNet training data. I would really appreciate it if you share with me your re-implementation results with this script.
             
 
 # Use like this in your own code
