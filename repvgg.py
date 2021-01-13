@@ -72,7 +72,6 @@ class RepVGGBlock(nn.Module):
         std = np.sqrt(running_var + eps)
         t = gamma / std
         t = np.reshape(t, (-1, 1, 1, 1))
-        t = np.tile(t, (1, kernel.shape[1], kernel.shape[2], kernel.shape[3]))
         return kernel * t, beta - running_mean * gamma / std
 
     def _pad_1x1_to_3x3(self, kernel1x1):
@@ -88,6 +87,57 @@ class RepVGGBlock(nn.Module):
         kernelid, biasid = self._fuse_bn(self.rbr_identity)
         return kernel3x3 + self._pad_1x1_to_3x3(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
 
+
+#   This func derives the equivalent kernel and bias in a DIFFERENTIABLE manner.
+#   You can get the equivalent kernel and bias at any time and do whatever you want,
+    #   for example, apply some penalties or constraints, just like you do to the other models.
+#   May be useful for quantization or pruning.
+
+    def get_equivalent_kernel(self):
+        kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
+        kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
+        kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
+        return kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
+
+    def _pad_1x1_to_3x3_tensor(self, kernel1x1):
+        if kernel1x1 is None:
+            return 0
+        else:
+            return torch.nn.functional.pad(kernel1x1, [1,1,1,1])
+
+    def _fuse_bn_tensor(self, branch):
+        if branch is None:
+            return 0, 0
+        if isinstance(branch, nn.Sequential):
+            kernel = branch.conv.weight
+            running_mean = branch.bn.running_mean
+            running_var = branch.bn.running_var
+            gamma = branch.bn.weight
+            beta = branch.bn.bias
+            eps = branch.bn.eps
+        else:
+            assert isinstance(branch, nn.BatchNorm2d)
+            if not hasattr(self, 'id_tensor'):
+                input_dim = self.in_channels // self.groups
+                kernel_value = np.zeros((self.in_channels, input_dim, 3, 3))
+                for i in range(self.in_channels):
+                    kernel_value[i, i % input_dim, 1, 1] = 1
+                self.id_tensor = torch.from_numpy(kernel_value)
+                if torch.cuda.is_available():
+                    self.id_tensor = self.id_tensor.cuda()
+            kernel = self.id_tensor
+            running_mean = branch.running_mean
+            running_var = branch.running_var
+            gamma = branch.weight
+            beta = branch.bias
+            eps = branch.eps
+        std = (running_var + eps).sqrt()
+        t = (gamma / std).reshape(-1, 1, 1, 1)
+        return kernel * t, beta - running_mean * gamma / std
+
+    def convert_by_equivalent_kernel(self):
+        kernel, bias = self.get_equivalent_kernel()
+        return kernel.detach().cpu().numpy(), bias.detach().cpu().numpy(),
 
 
 
