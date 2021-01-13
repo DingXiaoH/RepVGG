@@ -180,7 +180,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     optimizer = sgd_optimizer(model, args.lr, args.momentum, args.weight_decay)
 
-    lr_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=args.epochs * IMAGENET_TRAINSET_SIZE // args.batch_size)
+    lr_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=args.epochs * IMAGENET_TRAINSET_SIZE // args.batch_size // ngpus_per_node)
 
     # optionally resume from a checkpoint
     if args.resume:
