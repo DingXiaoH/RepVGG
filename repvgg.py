@@ -159,7 +159,7 @@ class RepVGG(nn.Module):
         self.stage2 = self._make_stage(int(128 * width_multiplier[1]), num_blocks[1], stride=2)
         self.stage3 = self._make_stage(int(256 * width_multiplier[2]), num_blocks[2], stride=2)
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
-        self.gap = nn.AvgPool2d(7)
+        self.gap = nn.AdaptiveAvgPool2d(output_size=1)
         self.linear = nn.Linear(int(512 * width_multiplier[3]), num_classes)
 
 
@@ -287,7 +287,7 @@ def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
         print('deploy param: ', name, param.size(), np.mean(converted_weights[name]))
         param.data = torch.from_numpy(converted_weights[name]).float()
 
-    if save_path is not None and save_path.endswith('pth'):
+    if save_path is not None:
         torch.save(deploy_model.state_dict(), save_path)
 
     return deploy_model
