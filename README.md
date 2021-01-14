@@ -45,7 +45,7 @@ Note that the argument "deploy" builds an inference-time model.
 
 # ImageNet training settings
 
-We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.weight and bn.bias), and the same simple data preprocssing as the PyTorch official example:
+We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.bias, rbr_dense.bn.weight and rbr_1x1.bn.weight) (weight decay on rbr_identity.weight makes little difference, and it is better to use it in most of the cases), and the same simple data preprocssing as the PyTorch official example:
 ```
             trans = transforms.Compose([
                 transforms.RandomResizedCrop(224),
@@ -55,7 +55,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
-The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on bias and BN parameters. You may find these code segments useful for your training code. This training script has not been tested because I don't have raw ImageNet training data. I would really appreciate it if you share with me your re-implementation results with this script. For example,
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. This training script has not been tested because I don't have raw ImageNet training data. I would really appreciate it if you share with me your re-implementation results with this script. For example,
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 [imagenet-folder with train and val folders]
 ```
