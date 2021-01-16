@@ -8,11 +8,11 @@ Update (Jan 13, 2021): you can get the equivalent kernel and bias in a different
 
 Citation:
 
-@article{ding2101repvgg,
-  title={RepVGG: Making VGG-style ConvNets Great Again},
-  author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
-  journal={arXiv preprint arXiv:2101.03697}
-}
+    @article{ding2101repvgg,
+      title={RepVGG: Making VGG-style ConvNets Great Again},
+      author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
+      journal={arXiv preprint arXiv:2101.03697}
+    }
 
 # Abstract
 
