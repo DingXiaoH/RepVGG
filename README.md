@@ -87,6 +87,21 @@ deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 
 # FAQs
 
+Q: Is the inference-time model's output the same as the training-time model.
+
+A: Yes. You can verify that by
+```
+import torch
+import numpy as np
+train_model = create_RepVGG_A0(deploy=False)
+train_model.eval()
+deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0)
+x = torch.from_numpy(np.random.randn(4, 3, 224, 224)).float()
+train_y = train_model(x)
+deploy_y = deploy_model(x)
+print(((train_y - deploy_y) ** 2).sum())    # The output will be around 5e-10
+```
+
 Q: How to use the pretrained RepVGG models for other tasks?
 
 A: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
