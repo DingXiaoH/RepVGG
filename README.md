@@ -96,10 +96,10 @@ import numpy as np
 train_model = create_RepVGG_A0(deploy=False)
 train_model.eval()
 deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0)
-x = torch.from_numpy(np.random.randn(4, 3, 224, 224)).float()
+x = torch.from_numpy(np.random.randn(1, 3, 224, 224)).float()
 train_y = train_model(x)
 deploy_y = deploy_model(x)
-print(((train_y - deploy_y) ** 2).sum())    # Will be around 5e-10
+print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 ```
 
 Q: How to use the pretrained RepVGG models for other tasks?
