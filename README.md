@@ -87,7 +87,7 @@ deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 
 # FAQs
 
-Q: Is the inference-time model's output the same as the training-time model.
+Q: Is the inference-time model's output the _same_ as the training-time model?
 
 A: Yes. You can verify that by
 ```
