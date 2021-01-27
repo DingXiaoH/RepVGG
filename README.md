@@ -5,6 +5,7 @@ This is a super simple ConvNet architecture that achieves over 80% top-1 accurac
 The MegEngine version: https://github.com/megvii-model/RepVGG.
 
 Update (Jan 13, 2021): you can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization.
+Update (Jan 27, 2021): this training script has been tested.
 
 Citation:
 
@@ -63,7 +64,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
-The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. This training script has not been tested because I don't have raw ImageNet training data. I would really appreciate it if you share with me your re-implementation results with this script. For example,
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. We tested this training script with RepVGG-A0 and the final accuracy was 72.36%. I would really appreciate it if you share with me your re-implementation results with other models. For example,
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 [imagenet-folder with train and val folders]
 ```
