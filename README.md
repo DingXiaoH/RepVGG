@@ -70,9 +70,10 @@ We tested this training script with RepVGG-A0:
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 [imagenet-folder with train and val folders]
 ```
-The accuracy was 72.44% (model_best.pth.tar)
-
-
+The accuracy was 72.44%.
+```
+python test.py [imagenet-folder with train and val folders] train model_best.pth.tar -a RepVGG-A0
+```
 I would really appreciate it if you share with me your re-implementation results with other models. 
             
 
