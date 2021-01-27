@@ -46,9 +46,9 @@ def test():
         print("=> loading checkpoint '{}'".format(args.weights))
         checkpoint = torch.load(args.weights)
         if 'state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['state_dict'])
-        else:
-            model.load_state_dict(checkpoint)
+            checkpoint = checkpoint['state_dict']
+        ckpt = {k.replace('module.', ''):v for k,v in checkpoint.items()}   # strip the names
+        model.load_state_dict(ckpt)
     else:
         print("=> no checkpoint found at '{}'".format(args.weights))
 
