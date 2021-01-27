@@ -53,7 +53,7 @@ python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-dep
 Note that the argument "deploy" builds an inference-time model.
 
 
-# ImageNet training settings
+# ImageNet training
 
 We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.bias, rbr_dense.bn.weight and rbr_1x1.bn.weight) (weight decay on rbr_identity.weight makes little difference, and it is better to use it in most of the cases), and the same simple data preprocssing as the PyTorch official example:
 ```
@@ -65,10 +65,16 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                                          std=[0.229, 0.224, 0.225])
             ])
 ```
-The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. We tested this training script with RepVGG-A0 and the final accuracy was 72.44% (model_best.pth.tar). I would really appreciate it if you share with me your re-implementation results with other models. For example,
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
+We tested this training script with RepVGG-A0: 
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 [imagenet-folder with train and val folders]
 ```
+The accuracy was 72.44%.
+```
+python test.py [imagenet-folder with train and val folders] train model_best.pth.tar -a RepVGG-A0
+```
+I would really appreciate it if you share with me your re-implementation results with other models. 
             
 
 # Use like this in your own code
@@ -113,6 +119,20 @@ Q: How to quantize a RepVGG model?
 A1: Post-training quantization. After training and conversion, you may quantize the converted model with any post-training quantization method. Then you may insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
 
 A2: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py). 
+
+Q: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
+
+A: DistributedDataParallel may prefix "module." to the name of params and cause a mismatch when loading weights by name. The simplest solution is to loading the weights (model.load_state_dict(...)) before DistributedDataParallel(model). Otherwise, you may insert "module." before the names like this
+```
+checkpoint = torch.load(...)    # This is just a name-value dict
+ckpt = {('module.' + k) : v for k, v in checkpoint.items()}
+model.load_state_dict(ckpt)
+```
+Likewise, if the param names in the checkpoint file start with "module." but those in your model do not, you may strip the names like line 50 in test.py.
+```
+ckpt = {k.replace('module.', ''):v for k,v in checkpoint.items()}   # strip the names
+model.load_state_dict(ckpt)
+```
 
 
 ## Contact
