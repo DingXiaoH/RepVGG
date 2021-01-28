@@ -121,7 +121,7 @@ A2: Quantization-aware training. During the quantization-aware training, instead
 
 Q: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
 
-A: DistributedDataParallel may prefix "module." to the name of params and cause a mismatch when loading weights by name. The simplest solution is to loading the weights (model.load_state_dict(...)) before DistributedDataParallel(model). Otherwise, you may insert "module." before the names like this
+A: DistributedDataParallel may prefix "module." to the name of params and cause a mismatch when loading weights by name. The simplest solution is to load the weights (model.load_state_dict(...)) before DistributedDataParallel(model). Otherwise, you may insert "module." before the names like this
 ```
 checkpoint = torch.load(...)    # This is just a name-value dict
 ckpt = {('module.' + k) : v for k, v in checkpoint.items()}
