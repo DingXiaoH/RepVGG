@@ -68,7 +68,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
 The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
 We tested this training script with RepVGG-A0: 
 ```
-python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 [imagenet-folder with train and val folders]
+python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders]
 ```
 The accuracy was 72.44%.
 ```
@@ -100,11 +100,10 @@ Q: Is the inference-time model's output the _same_ as the training-time model?
 A: Yes. You can verify that by
 ```
 import torch
-import numpy as np
 train_model = create_RepVGG_A0(deploy=False)
-train_model.eval()
+train_model.eval()      # Don't forget to call this before inference.
 deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0)
-x = torch.from_numpy(np.random.randn(1, 3, 224, 224)).float()
+x = torch.randn(1, 3, 224, 224)
 train_y = train_model(x)
 deploy_y = deploy_model(x)
 print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
