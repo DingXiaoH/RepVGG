@@ -97,44 +97,6 @@ class RepVGGBlock(nn.Module):
         kernel, bias = self.get_equivalent_kernel_bias()
         return kernel.detach().cpu().numpy(), bias.detach().cpu().numpy(),
 
-    # def _fuse_bn(self, branch):
-    #     if branch is None:
-    #         return 0, 0
-    #     if isinstance(branch, nn.Sequential):
-    #         kernel = branch.conv.weight.detach().cpu().numpy()
-    #         running_mean = branch.bn.running_mean.cpu().numpy()
-    #         running_var = branch.bn.running_var.cpu().numpy()
-    #         gamma = branch.bn.weight.detach().cpu().numpy()
-    #         beta = branch.bn.bias.detach().cpu().numpy()
-    #         eps = branch.bn.eps
-    #     else:
-    #         assert isinstance(branch, nn.BatchNorm2d)
-    #         input_dim = self.in_channels // self.groups
-    #         kernel = np.zeros((self.in_channels, input_dim, 3, 3))
-    #         for i in range(self.in_channels):
-    #             kernel[i, i % input_dim, 1, 1] = 1
-    #         running_mean = branch.running_mean.cpu().numpy()
-    #         running_var = branch.running_var.cpu().numpy()
-    #         gamma = branch.weight.detach().cpu().numpy()
-    #         beta = branch.bias.detach().cpu().numpy()
-    #         eps = branch.eps
-    #     std = np.sqrt(running_var + eps)
-    #     t = gamma / std
-    #     t = np.reshape(t, (-1, 1, 1, 1))
-    #     return kernel * t, beta - running_mean * gamma / std
-    #
-    # def _pad_1x1_to_3x3(self, kernel1x1):
-    #     if kernel1x1 is None:
-    #         return 0
-    #     kernel = np.zeros((kernel1x1.shape[0], kernel1x1.shape[1], 3, 3))
-    #     kernel[:, :, 1:2, 1:2] = kernel1x1
-    #     return kernel
-    #
-    # def repvgg_convert(self):
-    #     kernel3x3, bias3x3 = self._fuse_bn(self.rbr_dense)
-    #     kernel1x1, bias1x1 = self._fuse_bn(self.rbr_1x1)
-    #     kernelid, biasid = self._fuse_bn(self.rbr_identity)
-    #     return kernel3x3 + self._pad_1x1_to_3x3(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
 
 
 class RepVGG(nn.Module):
@@ -276,8 +238,6 @@ def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
         elif isinstance(module, torch.nn.Linear):
             converted_weights[name + '.weight'] = module.weight.detach().cpu().numpy()
             converted_weights[name + '.bias'] = module.bias.detach().cpu().numpy()
-        else:
-            print(name, type(module))
     del model
 
     deploy_model = build_func(deploy=True)
