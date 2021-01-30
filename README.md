@@ -4,6 +4,8 @@ This is a super simple ConvNet architecture that achieves over 80% top-1 accurac
 
 The MegEngine version: https://github.com/megvii-model/RepVGG.
 
+TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
+
 Update (Jan 13, 2021): you can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization.
 
 Update (Jan 27, 2021): this training script has been tested.
