@@ -68,12 +68,9 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
             ])
 ```
 The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
-We tested this training script with RepVGG-A0: 
+We tested this training script with RepVGG-A0 and RepVGG-B1. The accuracy was 72.44 and 78.38, respectively, which was almost the same as (and even better than) the results we reported in the paper (72.41 and 78.37). You may train and test like this:
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders]
-```
-The accuracy was 72.44%.
-```
 python test.py [imagenet-folder with train and val folders] train model_best.pth.tar -a RepVGG-A0
 ```
 I would really appreciate it if you share with me your re-implementation results with other models. 
