@@ -112,7 +112,7 @@ A: It is better to finetune the training-time RepVGG models on your datasets. Th
 ```
 backbone = create_RepVGG_A0(deploy=False)
 backbone.load_state_dict(torch.load('RepVGG-A0-train.pth'))
-pspnet.backbone = backbone
+pspnet.backbone = backbone  # depends on your implementation
 train_pspnet(pspnet)
 pspnet.backbone = repvgg_model_convert(pspnet.backbone, create_RepVGG_A0)
 torch.save(pspnet.state_dict(), save_path)
