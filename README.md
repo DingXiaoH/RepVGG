@@ -63,9 +63,7 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
                 transforms.RandomResizedCrop(224),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])
-            ])
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 ```
 The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
 We tested this training script with RepVGG-A0 and RepVGG-B1. The accuracy was 72.44 and 78.38, respectively, which was almost the same as (and even better than) the results we reported in the paper (72.41 and 78.37). You may train and test like this:
@@ -110,7 +108,16 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 
 Q: How to use the pretrained RepVGG models for other tasks?
 
-A: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
+A: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). The pseudo code will be like
+```
+backbone = create_RepVGG_A0(deploy=False)
+backbone.load_state_dict(torch.load('RepVGG-A0-train.pth'))
+pspnet.backbone = backbone
+train_pspnet(pspnet)
+pspnet.backbone = repvgg_model_convert(pspnet.backbone, create_RepVGG_A0)
+torch.save(pspnet.state_dict(), save_path)
+```
+Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
 Q: How to quantize a RepVGG model?
 
