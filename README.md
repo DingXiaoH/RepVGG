@@ -6,6 +6,8 @@ The MegEngine version: https://github.com/megvii-model/RepVGG.
 
 TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
 
+Another nice PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls.
+
 Update (Jan 13, 2021): you can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization.
 
 Update (Jan 31, 2021): this training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper.
