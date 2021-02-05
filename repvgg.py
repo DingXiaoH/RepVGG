@@ -225,7 +225,7 @@ def get_RepVGG_func_by_name(name):
 
 
 
-#   Use this for converting a customized model with RepVGG as one of its component (e.g., the backbone of a semantic segmentation model)
+#   Use this for converting a customized model with RepVGG as one of its components (e.g., the backbone of a semantic segmentation model)
 #   The use case will be like
 #   1.  Build train_model. For example, build a PSPNet with a training-time RepVGG as backbone
 #   2.  Train train_model or do whatever you want
@@ -237,7 +237,7 @@ def get_RepVGG_func_by_name(name):
 #   segmentation_train(train_pspnet)
 #   deploy_backbone = create_RepVGG_B2(deploy=True)
 #   deploy_pspnet = build_pspnet(backbone=deploy_backbone)
-#   whole_model_convert_and_load(train_pspnet, deploy_pspnet)
+#   whole_model_convert(train_pspnet, deploy_pspnet)
 #   segmentation_test(deploy_pspnet)
 def whole_model_convert(train_model:torch.nn.Module, deploy_model:torch.nn.Module, save_path=None):
     all_weights = {}
