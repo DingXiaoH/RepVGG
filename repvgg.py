@@ -233,6 +233,7 @@ def get_RepVGG_func_by_name(name):
 #   4.  Call this func
 #   ====================== the pseudo code will be like
 #   train_backbone = create_RepVGG_B2(deploy=False)
+#   train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
 #   train_pspnet = build_pspnet(backbone=train_backbone)
 #   segmentation_train(train_pspnet)
 #   deploy_backbone = create_RepVGG_B2(deploy=True)
