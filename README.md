@@ -96,9 +96,9 @@ deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 
 # FAQs
 
-Q: Is the inference-time model's output the _same_ as the training-time model?
+**Q**: Is the inference-time model's output the _same_ as the training-time model?
 
-A: Yes. You can verify that by
+**A**: Yes. You can verify that by
 ```
 import torch
 train_model = create_RepVGG_A0(deploy=False)
@@ -110,28 +110,34 @@ deploy_y = deploy_model(x)
 print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 ```
 
-Q: How to use the pretrained RepVGG models for other tasks?
+**Q**: How to use the pretrained RepVGG models for other tasks?
 
-A: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). The pseudo code will be like
+**A**: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Now we provide a function (**whole_model_convert in repvgg.py**) to do this. The pseudo code will be like
 ```
-backbone = create_RepVGG_A0(deploy=False)
-backbone.load_state_dict(torch.load('RepVGG-A0-train.pth'))
-pspnet.backbone = backbone  # depends on your implementation
-train_pspnet(pspnet)
-pspnet.backbone = repvgg_model_convert(pspnet.backbone, create_RepVGG_A0)
-torch.save(pspnet.state_dict(), save_path)
+train_backbone = create_RepVGG_B2(deploy=False)
+train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
+train_pspnet = build_pspnet(backbone=train_backbone)
+segmentation_train(train_pspnet)
+deploy_backbone = create_RepVGG_B2(deploy=True)
+deploy_pspnet = build_pspnet(backbone=deploy_backbone)
+whole_model_convert(train_pspnet, deploy_pspnet)
+segmentation_test(deploy_pspnet)
+torch.save(deploy_pspnet.state_dict(), 'deploy_pspnet.pth')
 ```
+If the implementation of your model does not allow simply replacing the backbone
+whole_model_convert in repvgg.p
+
 Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
-Q: How to quantize a RepVGG model?
+**Q**: How to quantize a RepVGG model?
 
-A1: Post-training quantization. After training and conversion, you may quantize the converted model with any post-training quantization method. Then you may insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
+**A1**: Post-training quantization. After training and conversion, you may quantize the converted model with any post-training quantization method. Then you may insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
 
-A2: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py). 
+**A2**: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py). 
 
-Q: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
+**Q**: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
 
-A: DistributedDataParallel may prefix "module." to the name of params and cause a mismatch when loading weights by name. The simplest solution is to load the weights (model.load_state_dict(...)) before DistributedDataParallel(model). Otherwise, you may insert "module." before the names like this
+**A**: DistributedDataParallel may prefix "module." to the name of params and cause a mismatch when loading weights by name. The simplest solution is to load the weights (model.load_state_dict(...)) before DistributedDataParallel(model). Otherwise, you may insert "module." before the names like this
 ```
 checkpoint = torch.load(...)    # This is just a name-value dict
 ckpt = {('module.' + k) : v for k, v in checkpoint.items()}
