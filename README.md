@@ -124,9 +124,6 @@ whole_model_convert(train_pspnet, deploy_pspnet)
 segmentation_test(deploy_pspnet)
 torch.save(deploy_pspnet.state_dict(), 'deploy_pspnet.pth')
 ```
-If the implementation of your model does not allow simply replacing the backbone
-whole_model_convert in repvgg.p
-
 Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
 **Q**: How to quantize a RepVGG model?
