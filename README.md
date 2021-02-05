@@ -93,6 +93,7 @@ deploy_model = create_RepVGG_A0(deploy=True)
 deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 # do whatever you want with deploy_model
 ```
+If you use RepVGG as a component of another model, it will be more convenient to use **whole_model_convert in repvgg.py** for the conversion. Please refer to FAQs for more details.
 
 # FAQs
 
