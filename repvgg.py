@@ -224,7 +224,47 @@ def get_RepVGG_func_by_name(name):
     return func_dict[name]
 
 
-#   Use like this:
+
+#   Use this for converting a customized model with RepVGG as one of its component (e.g., the backbone of a semantic segmentation model)
+#   The use case will be like
+#   1.  Build train_model. For example, build a PSPNet with a training-time RepVGG as backbone
+#   2.  Train train_model or do whatever you want
+#   3.  Build deploy_model. In the above example, that will be a PSPNet with an inference-time RepVGG as backbone
+#   4.  Call this func
+#   ====================== the pseudo code will be like
+#   train_backbone = create_RepVGG_B2(deploy=False)
+#   train_pspnet = build_pspnet(backbone=train_backbone)
+#   segmentation_train(train_pspnet)
+#   deploy_backbone = create_RepVGG_B2(deploy=True)
+#   deploy_pspnet = build_pspnet(backbone=deploy_backbone)
+#   whole_model_convert_and_load(train_pspnet, deploy_pspnet)
+#   segmentation_test(deploy_pspnet)
+def whole_model_convert(train_model:torch.nn.Module, deploy_model:torch.nn.Module, save_path=None):
+    all_weights = {}
+    for name, module in train_model.named_modules():
+        if hasattr(module, 'repvgg_convert'):
+            kernel, bias = module.repvgg_convert()
+            all_weights[name + '.rbr_reparam.weight'] = kernel
+            all_weights[name + '.rbr_reparam.bias'] = bias
+            print('convert RepVGG block')
+        else:
+            for p_name, p_tensor in module.named_parameters():
+                full_name = name + '.' + p_name
+                if full_name not in all_weights:
+                    all_weights[full_name] = p_tensor.detach().cpu().numpy()
+            for p_name, p_tensor in module.named_buffers():
+                full_name = name + '.' + p_name
+                if full_name not in all_weights:
+                    all_weights[full_name] = p_tensor.cpu().numpy()
+
+    deploy_model.load_state_dict(all_weights)
+    if save_path is not None:
+        torch.save(deploy_model.state_dict(), save_path)
+
+    return deploy_model
+
+
+#   Use this when converting a RepVGG without customized structures.
 #   train_model = create_RepVGG_A0(deploy=False)
 #   train train_model
 #   deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
