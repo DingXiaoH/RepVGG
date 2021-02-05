@@ -12,6 +12,8 @@ Update (Jan 13, 2021): you can get the equivalent kernel and bias in a different
 
 Update (Jan 31, 2021): this training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper.
 
+Update (Feb 5, 2021): added a function (whole_model_convert in repvgg.py) for easily converting a customized model with RepVGG as one of its components (e.g., the backbone of a semantic segmentation model). It will convert the RepVGG blocks only and keep the other parts. If it does not work with your model, please raise an issue.
+
 Citation:
 
     @article{ding2101repvgg,
