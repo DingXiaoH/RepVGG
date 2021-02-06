@@ -46,15 +46,15 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-B2-trai
 
 You may convert a trained model into the inference-time structure with
 ```
-python convert.py [weights file of the training-time model to load] [path to save] -a [model name]
+model = get_RepVGG_func_by_name("RepVGG-A0")()
+model.eval()
+model.deploy(mode=True,show_error=False)
+
+### torch.onnx.export(model,test_in,"model.onnx")
 ```
-For example,
+You may test the inference-time model by
 ```
-python convert.py RepVGG-B2-train.pth RepVGG-B2-deploy.pth -a RepVGG-B2
-```
-Then you may test the inference-time model by
-```
-python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-deploy.pth -a RepVGG-B2
+python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-train.pth -a RepVGG-B2
 ```
 Note that the argument "deploy" builds an inference-time model.
 

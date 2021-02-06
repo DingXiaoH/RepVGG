@@ -145,7 +145,8 @@ def main_worker(gpu, ngpus_per_node, args):
 
     repvgg_build_func = get_RepVGG_func_by_name(args.arch)
 
-    model = repvgg_build_func(deploy=False)
+    model = repvgg_build_func()
+    model.deploy(mode=False)
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
