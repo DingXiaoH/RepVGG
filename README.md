@@ -146,6 +146,9 @@ Likewise, if the param names in the checkpoint file start with "module." but tho
 ckpt = {k.replace('module.', ''):v for k,v in checkpoint.items()}   # strip the names
 model.load_state_dict(ckpt)
 ```
+**Q**: So a RepVGG model derives the equivalent 3x3 kernels before each forwarding to save computations?
+
+**A**: No! More precisely, we do the conversion only once right after training. Then the training-time model can be discarded, and the resultant model only has 3x3 kernels. We only save and use the resultant model.
 
 
 ## Contact
