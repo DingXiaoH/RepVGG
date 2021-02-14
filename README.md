@@ -18,10 +18,11 @@ Update (Feb 5, 2021): added a function (**whole_model_convert in repvgg.py**) fo
 
 Citation:
 
-    @article{ding2101repvgg,
-      title={RepVGG: Making VGG-style ConvNets Great Again},
-      author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
-      journal={arXiv preprint arXiv:2101.03697}
+    @article{ding2021repvgg,
+    title={RepVGG: Making VGG-style ConvNets Great Again},
+    author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
+    journal={arXiv preprint arXiv:2101.03697},
+    year={2021}
     }
 
 # Abstract
