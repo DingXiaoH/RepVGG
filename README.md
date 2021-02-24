@@ -39,7 +39,11 @@ You may download _all_ of the ImageNet-pretrained models reported in the paper f
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
-Here "train" indicates the training-time architecture. For example,
+Here "train" indicates the training-time architecture, and the valid model names include
+```
+RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
+```
+For example,
 ```
 python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
 ```
