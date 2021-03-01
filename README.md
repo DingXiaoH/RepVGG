@@ -1,4 +1,4 @@
-# RepVGG: Making VGG-style ConvNets Great Again (PyTorch)
+# RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
 This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time.
 
