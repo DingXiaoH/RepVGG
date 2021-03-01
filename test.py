@@ -30,7 +30,10 @@ def test():
 
     repvgg_build_func = get_RepVGG_func_by_name(args.arch)
 
-    model = repvgg_build_func(deploy=args.mode=='deploy')
+    model = repvgg_build_func()
+
+    model.deploy(args.mode=='deploy')
+
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
