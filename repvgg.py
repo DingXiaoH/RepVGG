@@ -268,7 +268,7 @@ def whole_model_convert(train_model:torch.nn.Module, deploy_model:torch.nn.Modul
 #   Use this when converting a RepVGG without customized structures.
 #   train_model = create_RepVGG_A0(deploy=False)
 #   train train_model
-#   deploy_model = repvgg_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+#   deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
 def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
     converted_weights = {}
     for name, module in model.named_modules():
