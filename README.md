@@ -16,6 +16,13 @@ Update (Jan 31, 2021): this training script (a super simple PyTorch-official-exa
 
 Update (Feb 5, 2021): added a function (**whole_model_convert in repvgg.py**) for easily converting a customized model with RepVGG as one of its components (e.g., the backbone of a semantic segmentation model). It will convert the RepVGG blocks only and keep the other parts. If it does not work with your model, please raise an issue.
 
+Update (Apr 4, 2021): a better implementation. For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert by simply calling **switch_to_deploy** of every RepVGG block.
+```
+    for module in model.modules():
+        if hasattr(module, 'switch_to_deploy'):
+            module.switch_to_deploy()
+```
+
 Citation:
 
     @article{ding2021repvgg,
