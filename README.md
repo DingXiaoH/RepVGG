@@ -1,6 +1,6 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and an example of using RepVGG for semantic segmentation.
+This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
 
 The MegEngine version: https://github.com/megvii-model/RepVGG.
 
@@ -10,7 +10,7 @@ Another nice PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls.
 
 Included in a famous model zoo (over 7k stars) https://github.com/rwightman/pytorch-image-models.
 
-Update (Apr 4, 2021): a better implementation. For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert the whole model by simply calling **switch_to_deploy** of every RepVGG block. This is the recommended way.
+Update (Apr 4, 2021): a better implementation. For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert the whole model by simply calling **switch_to_deploy** of every RepVGG block. This is the recommended way. Examples are shown in **convert.py** and **example_pspnet.py**.
 ```
     for module in model.modules():
         if hasattr(module, 'switch_to_deploy'):
@@ -18,7 +18,7 @@ Update (Apr 4, 2021): a better implementation. For a RepVGG model or a model wit
 ```
 Update (Apr 4, 2021): an example of using RepVGG as the backbone of PSPNet for semantic segmentation (**example_pspnet.py**). It shows how to 1) build a PSPNet with RepVGG backbone, 2) load the ImageNet-pretrained weights, 3) convert the whole model with **switch_to_deploy**, 4) save and use the converted model for inference.
 
-Update (Jan 13 - Feb 5, 2021): you can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization. This training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper. Added a function (**whole_model_convert in repvgg.py**) for easily converting a customized model with RepVGG as one of its components (e.g., the backbone of a semantic segmentation model). It will convert the RepVGG blocks only and keep the other parts. If it does not work with your model, please raise an issue. (whole_model_convert is no longer the recommended way. **switch_to_deploy** is more convenient.)
+Update (Jan 13 - Feb 5, 2021): you can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization. This training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper.
 
 Citation:
 
@@ -95,7 +95,7 @@ from repvgg import repvgg_model_convert, create_RepVGG_A0
 train_model = create_RepVGG_A0(deploy=False)
 train_model.load_state_dict(torch.load('RepVGG-A0-train.pth'))          # or train from scratch
 # do whatever you want with train_model
-deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+deploy_model = repvgg_model_convert(train_model, save_path='RepVGG-A0-deploy.pth')
 # do whatever you want with deploy_model
 ```
 or
@@ -104,7 +104,8 @@ deploy_model = create_RepVGG_A0(deploy=True)
 deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 # do whatever you want with deploy_model
 ```
-If you use RepVGG as a component of another model, it will be more convenient to use **whole_model_convert in repvgg.py** for the conversion. Please refer to FAQs for more details.
+If you use RepVGG as a component of another model, the conversion is as simple as calling **switch_to_deploy** of every RepVGG block. 
+
 
 # FAQs
 
@@ -115,7 +116,7 @@ If you use RepVGG as a component of another model, it will be more convenient to
 import torch
 train_model = create_RepVGG_A0(deploy=False)
 train_model.eval()      # Don't forget to call this before inference.
-deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0)
+deploy_model = repvgg_model_convert(train_model)
 x = torch.randn(1, 3, 224, 224)
 train_y = train_model(x)
 deploy_y = deploy_model(x)
@@ -124,17 +125,14 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 
 **Q**: How to use the pretrained RepVGG models for other tasks?
 
-**A**: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). Now we provide a function (**whole_model_convert in repvgg.py**) to do this. The pseudo code will be like
+**A**: It is better to finetune the training-time RepVGG models on your datasets. Then you should do the conversion after finetuning and before you deploy the models. For example, say you want to use PSPNet for semantic segmentation, you should build a PSPNet with a training-time RepVGG model as the backbone, load pre-trained weights into the backbone, and finetune the PSPNet on your segmentation dataset. Then you should convert the backbone following the code provided in this repo and keep the other task-specific structures (the PSPNet parts, in this case). The pseudo code will be like
 ```
-train_backbone = create_RepVGG_B2(deploy=False)
-train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
-train_pspnet = build_pspnet(backbone=train_backbone)
-segmentation_train(train_pspnet)
-deploy_backbone = create_RepVGG_B2(deploy=True)
-deploy_pspnet = build_pspnet(backbone=deploy_backbone)
-whole_model_convert(train_pspnet, deploy_pspnet)
-segmentation_test(deploy_pspnet)
-torch.save(deploy_pspnet.state_dict(), 'deploy_pspnet.pth')
+#   train_backbone = create_RepVGG_B2(deploy=False)
+#   train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
+#   train_pspnet = build_pspnet(backbone=train_backbone)
+#   segmentation_train(train_pspnet)
+#   deploy_pspnet = repvgg_model_convert(train_pspnet)
+#   segmentation_test(deploy_pspnet)
 ```
 Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
