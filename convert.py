@@ -30,7 +30,7 @@ def convert():
     else:
         print("=> no checkpoint found at '{}'".format(args.load))
 
-    repvgg_model_convert(train_model, build_func=repvgg_build_func, save_path=args.save)
+    repvgg_model_convert(train_model, save_path=args.save)
 
 
 if __name__ == '__main__':

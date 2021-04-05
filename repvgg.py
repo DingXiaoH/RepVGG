@@ -1,6 +1,7 @@
 import torch.nn as nn
 import numpy as np
 import torch
+import copy
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -92,10 +93,6 @@ class RepVGGBlock(nn.Module):
         std = (running_var + eps).sqrt()
         t = (gamma / std).reshape(-1, 1, 1, 1)
         return kernel * t, beta - running_mean * gamma / std
-
-    def repvgg_convert(self):
-        kernel, bias = self.get_equivalent_kernel_bias()
-        return kernel.detach().cpu().numpy(), bias.detach().cpu().numpy()
 
     def switch_to_deploy(self):
         if hasattr(self, 'rbr_reparam'):
@@ -241,68 +238,28 @@ def get_RepVGG_func_by_name(name):
 
 
 
-#   Use this for converting a customized model with RepVGG as one of its components (e.g., the backbone of a semantic segmentation model)
-#   The use case will be like
-#   1.  Build train_model. For example, build a PSPNet with a training-time RepVGG as backbone
-#   2.  Train train_model or do whatever you want
-#   3.  Build deploy_model. In the above example, that will be a PSPNet with an inference-time RepVGG as backbone
-#   4.  Call this func
-#   ====================== the pseudo code will be like
+#   Use this for converting a RepVGG model or a bigger model with RepVGG as its component
+#   Use like this
+#   model = create_RepVGG_A0(deploy=False)
+#   train model or load weights
+#   repvgg_model_convert(model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+#   If you want to preserve the original model, call with do_copy=True
+
+#   ====================== for using RepVGG as the backbone of a bigger model, e.g., PSPNet, the pseudo code will be like
 #   train_backbone = create_RepVGG_B2(deploy=False)
 #   train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
 #   train_pspnet = build_pspnet(backbone=train_backbone)
 #   segmentation_train(train_pspnet)
-#   deploy_backbone = create_RepVGG_B2(deploy=True)
-#   deploy_pspnet = build_pspnet(backbone=deploy_backbone)
-#   whole_model_convert(train_pspnet, deploy_pspnet)
+#   deploy_pspnet = repvgg_model_convert(train_pspnet)
 #   segmentation_test(deploy_pspnet)
-def whole_model_convert(train_model:torch.nn.Module, deploy_model:torch.nn.Module, save_path=None):
-    all_weights = {}
-    for name, module in train_model.named_modules():
-        if hasattr(module, 'repvgg_convert'):
-            kernel, bias = module.repvgg_convert()
-            all_weights[name + '.rbr_reparam.weight'] = kernel
-            all_weights[name + '.rbr_reparam.bias'] = bias
-            print('convert RepVGG block')
-        else:
-            for p_name, p_tensor in module.named_parameters():
-                full_name = name + '.' + p_name
-                if full_name not in all_weights:
-                    all_weights[full_name] = p_tensor.detach().cpu().numpy()
-            for p_name, p_tensor in module.named_buffers():
-                full_name = name + '.' + p_name
-                if full_name not in all_weights:
-                    all_weights[full_name] = p_tensor.cpu().numpy()
+#   =====================   example_pspnet.py shows an example
 
-    deploy_model.load_state_dict(all_weights)
+def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=False):
+    if do_copy:
+        model = copy.deepcopy(model)
+    for module in model.modules():
+        if hasattr(module, 'switch_to_deploy'):
+            module.switch_to_deploy()
     if save_path is not None:
-        torch.save(deploy_model.state_dict(), save_path)
-
-    return deploy_model
-
-
-#   Use this when converting a RepVGG without customized structures.
-#   train_model = create_RepVGG_A0(deploy=False)
-#   train train_model
-#   deploy_model = repvgg_model_convert(train_model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
-def repvgg_model_convert(model:torch.nn.Module, build_func, save_path=None):
-    converted_weights = {}
-    for name, module in model.named_modules():
-        if hasattr(module, 'repvgg_convert'):
-            kernel, bias = module.repvgg_convert()
-            converted_weights[name + '.rbr_reparam.weight'] = kernel
-            converted_weights[name + '.rbr_reparam.bias'] = bias
-        elif isinstance(module, torch.nn.Linear):
-            converted_weights[name + '.weight'] = module.weight.detach().cpu().numpy()
-            converted_weights[name + '.bias'] = module.bias.detach().cpu().numpy()
-    del model
-
-    deploy_model = build_func(deploy=True)
-    for name, param in deploy_model.named_parameters():
-        print('deploy param: ', name, param.size(), np.mean(converted_weights[name]))
-        param.data = torch.from_numpy(converted_weights[name]).float()
-
-    if save_path is not None:
-        torch.save(deploy_model.state_dict(), save_path)
-
-    return deploy_model
+        torch.save(model.state_dict(), save_path)
+    return model
