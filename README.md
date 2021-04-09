@@ -10,6 +10,8 @@ Another nice PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls.
 
 Included in a famous model zoo (over 7k stars) https://github.com/rwightman/pytorch-image-models.
 
+Objax implementation and models by @benjaminjellis. Great work! https://github.com/benjaminjellis/Objax-RepVGG.
+
 Update (Apr 4, 2021): a better implementation. For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert the whole model by simply calling **switch_to_deploy** of every RepVGG block. This is the recommended way. Examples are shown in **convert.py** and **example_pspnet.py**.
 ```
     for module in model.modules():
