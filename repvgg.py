@@ -242,7 +242,7 @@ def get_RepVGG_func_by_name(name):
 #   Use like this
 #   model = create_RepVGG_A0(deploy=False)
 #   train model or load weights
-#   repvgg_model_convert(model, create_RepVGG_A0, save_path='repvgg_deploy.pth')
+#   repvgg_model_convert(model, save_path='repvgg_deploy.pth')
 #   If you want to preserve the original model, call with do_copy=True
 
 #   ====================== for using RepVGG as the backbone of a bigger model, e.g., PSPNet, the pseudo code will be like
