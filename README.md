@@ -136,7 +136,7 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 #   deploy_pspnet = repvgg_model_convert(train_pspnet)
 #   segmentation_test(deploy_pspnet)
 ```
-This is an example in **example_pspnet.py**.
+There is an example in **example_pspnet.py**.
 
 Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
 
