@@ -254,7 +254,7 @@ def get_RepVGG_func_by_name(name):
 #   segmentation_test(deploy_pspnet)
 #   =====================   example_pspnet.py shows an example
 
-def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=False):
+def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=True):
     if do_copy:
         model = copy.deepcopy(model)
     for module in model.modules():
