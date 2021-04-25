@@ -1,6 +1,6 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-Update (Apr 25, 2021): a deeper RepVGG model achieves **83.55\% top-1 accuracy on ImageNet** with [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html) blocks and an input resolution of 320x320. Note that it is trained with 224x224 but tested with 320x320, so that it is still trainable with a global batch size of 256 on a single machine with 8 1080Ti GPUs. If you test it with 224x224, the top-1 accuracy will be 81.82%. It has 1, 8, 14, 24, 1 layers in the 5 stages respectively. The width multipliers are a=2.5 and b=5 (the same as RepVGG-B2). The code has been updated and the weights have been released at Google Drive and Baidu Cloud. Please see the links below. The model name is "RepVGG-D2se".
+Update (Apr 25, 2021): a deeper RepVGG model achieves **83.55\% top-1 accuracy on ImageNet** with [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html) blocks and an input resolution of 320x320. Note that it is trained with 224x224 but tested with 320x320, so that it is still trainable with a global batch size of 256 on a single machine with 8 1080Ti GPUs. If you test it with 224x224, the top-1 accuracy will be 81.82%. It has 1, 8, 14, 24, 1 layers in the 5 stages respectively. The width multipliers are a=2.5 and b=5 (the same as RepVGG-B2). The model name is "RepVGG-D2se". The code for building the model (repvgg.py) and testing with 320x320 (the testing example below) has been updated and the weights have been released at Google Drive and Baidu Cloud. Please check the links below.
 
 This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
 
@@ -47,13 +47,17 @@ You may download _all_ of the ImageNet-pretrained models reported in the paper f
 ```
 python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
 ```
-Here "train" indicates the training-time architecture, and the valid model names include
+The default input resolution is 224x224. Here "train" indicates the training-time architecture, and the valid model names include
 ```
 RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
 ```
 For example,
 ```
 python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
+```
+To test the latest model RepVGG-D2se with 320x320 inputs,
+```
+python test.py [imagenet-folder with train and val folders] train RepVGG-D2se-200epochs-train.pth -a RepVGG-D2se -r 320
 ```
 
 
