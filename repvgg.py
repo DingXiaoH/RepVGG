@@ -2,6 +2,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 import copy
+from se_block import SEBlock
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -13,7 +14,7 @@ def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
 class RepVGGBlock(nn.Module):
 
     def __init__(self, in_channels, out_channels, kernel_size,
-                 stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', deploy=False):
+                 stride=1, padding=0, dilation=1, groups=1, padding_mode='zeros', deploy=False, use_se=False):
         super(RepVGGBlock, self).__init__()
         self.deploy = deploy
         self.groups = groups
@@ -25,6 +26,11 @@ class RepVGGBlock(nn.Module):
         padding_11 = padding - kernel_size // 2
 
         self.nonlinearity = nn.ReLU()
+
+        if use_se:
+            self.se = SEBlock(out_channels, internal_neurons=out_channels // 16)
+        else:
+            self.se = nn.Identity()
 
         if deploy:
             self.rbr_reparam = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride,
@@ -46,7 +52,7 @@ class RepVGGBlock(nn.Module):
         else:
             id_out = self.rbr_identity(inputs)
 
-        return self.nonlinearity(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out)
+        return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
 
 
@@ -114,19 +120,20 @@ class RepVGGBlock(nn.Module):
 
 class RepVGG(nn.Module):
 
-    def __init__(self, num_blocks, num_classes=1000, width_multiplier=None, override_groups_map=None, deploy=False):
+    def __init__(self, num_blocks, num_classes=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
         super(RepVGG, self).__init__()
 
         assert len(width_multiplier) == 4
 
         self.deploy = deploy
         self.override_groups_map = override_groups_map or dict()
+        self.use_se = use_se
 
         assert 0 not in self.override_groups_map
 
         self.in_planes = min(64, int(64 * width_multiplier[0]))
 
-        self.stage0 = RepVGGBlock(in_channels=3, out_channels=self.in_planes, kernel_size=3, stride=2, padding=1, deploy=self.deploy)
+        self.stage0 = RepVGGBlock(in_channels=3, out_channels=self.in_planes, kernel_size=3, stride=2, padding=1, deploy=self.deploy, use_se=self.use_se)
         self.cur_layer_idx = 1
         self.stage1 = self._make_stage(int(64 * width_multiplier[0]), num_blocks[0], stride=2)
         self.stage2 = self._make_stage(int(128 * width_multiplier[1]), num_blocks[1], stride=2)
@@ -142,7 +149,7 @@ class RepVGG(nn.Module):
         for stride in strides:
             cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
             blocks.append(RepVGGBlock(in_channels=self.in_planes, out_channels=planes, kernel_size=3,
-                                      stride=stride, padding=1, groups=cur_groups, deploy=self.deploy))
+                                      stride=stride, padding=1, groups=cur_groups, deploy=self.deploy, use_se=self.use_se))
             self.in_planes = planes
             self.cur_layer_idx += 1
         return nn.Sequential(*blocks)
@@ -217,6 +224,10 @@ def create_RepVGG_B3g4(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
                   width_multiplier=[3, 3, 3, 5], override_groups_map=g4_map, deploy=deploy)
 
+def create_RepVGG_D2se(deploy=False):
+    return RepVGG(num_blocks=[8, 14, 24, 1], num_classes=1000,
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_se=True)
+
 
 func_dict = {
 'RepVGG-A0': create_RepVGG_A0,
@@ -232,6 +243,7 @@ func_dict = {
 'RepVGG-B3': create_RepVGG_B3,
 'RepVGG-B3g2': create_RepVGG_B3g2,
 'RepVGG-B3g4': create_RepVGG_B3g4,
+'RepVGG-D2se': create_RepVGG_D2se,      #   Updated at April 25, 2021. This is not reported in the CVPR paper.
 }
 def get_RepVGG_func_by_name(name):
     return func_dict[name]

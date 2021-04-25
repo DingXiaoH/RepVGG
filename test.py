@@ -11,8 +11,8 @@ import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from utils import accuracy, ProgressMeter, AverageMeter
-
 from repvgg import get_RepVGG_func_by_name
+import PIL
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Test')
 parser.add_argument('data', metavar='DIR', help='path to dataset')
@@ -24,6 +24,9 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
 parser.add_argument('-b', '--batch-size', default=100, type=int,
                     metavar='N',
                     help='mini-batch size (default: 100) for test')
+parser.add_argument('-r', '--resolution', default=224, type=int,
+                    metavar='R',
+                    help='resolution (default: 224) for test')
 
 def test():
     args = parser.parse_args()
@@ -60,13 +63,24 @@ def test():
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
+    if args.resolution == 224:
+        trans = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             normalize,
-        ])),
+        ])
+    else:
+        trans = transforms.Compose([
+            transforms.Resize(args.resolution, interpolation=PIL.Image.BILINEAR),
+            transforms.CenterCrop(args.resolution),
+            transforms.ToTensor(),
+            normalize,
+        ]
+        )
+
+    val_loader = torch.utils.data.DataLoader(
+        datasets.ImageFolder(valdir, trans),
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 

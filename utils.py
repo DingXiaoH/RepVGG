@@ -56,3 +56,36 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
+
+def read_hdf5(file_path):
+    import h5py
+    import numpy as np
+    result = {}
+    with h5py.File(file_path, 'r') as f:
+        for k in f.keys():
+            value = np.asarray(f[k])
+            result[str(k).replace('+', '/')] = value
+    print('read {} arrays from {}'.format(len(result), file_path))
+    f.close()
+    return result
+
+def model_load_hdf5(model:torch.nn.Module, hdf5_path, ignore_keys='stage0.'):
+    weights_dict = read_hdf5(hdf5_path)
+    for name, param in model.named_parameters():
+        print('load param: ', name, param.size())
+        if name in weights_dict:
+            np_value = weights_dict[name]
+        else:
+            np_value = weights_dict[name.replace(ignore_keys, '')]
+        value = torch.from_numpy(np_value).float()
+        assert tuple(value.size()) == tuple(param.size())
+        param.data = value
+    for name, param in model.named_buffers():
+        print('load buffer: ', name, param.size())
+        if name in weights_dict:
+            np_value = weights_dict[name]
+        else:
+            np_value = weights_dict[name.replace(ignore_keys, '')]
+        value = torch.from_numpy(np_value).float()
+        assert tuple(value.size()) == tuple(param.size())
+        param.data = value
