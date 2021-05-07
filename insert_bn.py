@@ -66,39 +66,66 @@ class BiasAdd(nn.Module):
     def forward(self, x):
         return x + self.bias.view(1, -1, 1, 1)
 
-def switch_repvggblock_to_bnstat(block):
-    assert hasattr(block, 'rbr_reparam')
-    stat = nn.Sequential()
-    stat.add_module('conv', nn.Conv2d(block.rbr_reparam.in_channels, block.rbr_reparam.out_channels,
-                                           block.rbr_reparam.kernel_size,
-                                           block.rbr_reparam.stride, block.rbr_reparam.padding, block.rbr_reparam.dilation,
-                                           block.rbr_reparam.groups, bias=False))   # Note bias=False
-    stat.add_module('bnstat', BNStatistics(block.rbr_reparam.out_channels))
-    stat.add_module('biasadd', BiasAdd(block.rbr_reparam.out_channels))     # Bias is here
-    stat.conv.weight.data = block.rbr_reparam.weight.data
-    stat.biasadd.bias.data = block.rbr_reparam.bias.data
-    block.__delattr__('rbr_reparam')
-    block.rbr_reparam = stat
+def switch_repvggblock_to_bnstat(model):
+    for n, block in model.named_modules():
+        if isinstance(block, RepVGGBlock):
+            print('switch to BN Statistics: ', n)
+            assert hasattr(block, 'rbr_reparam')
+            stat = nn.Sequential()
+            stat.add_module('conv', nn.Conv2d(block.rbr_reparam.in_channels, block.rbr_reparam.out_channels,
+                                              block.rbr_reparam.kernel_size,
+                                              block.rbr_reparam.stride, block.rbr_reparam.padding,
+                                              block.rbr_reparam.dilation,
+                                              block.rbr_reparam.groups, bias=False))  # Note bias=False
+            stat.add_module('bnstat', BNStatistics(block.rbr_reparam.out_channels))
+            stat.add_module('biasadd', BiasAdd(block.rbr_reparam.out_channels))  # Bias is here
+            stat.conv.weight.data = block.rbr_reparam.weight.data
+            stat.biasadd.bias.data = block.rbr_reparam.bias.data
+            block.__delattr__('rbr_reparam')
+            block.rbr_reparam = stat
 
-def switch_bnstat_to_convbn(block):
-    assert hasattr(block, 'rbr_reparam')
-    assert hasattr(block.rbr_reparam, 'bnstat')
-    conv = nn.Conv2d(block.rbr_reparam.conv.in_channels, block.rbr_reparam.conv.out_channels, block.rbr_reparam.conv.kernel_size,
-                     block.rbr_reparam.conv.stride, block.rbr_reparam.conv.padding, block.rbr_reparam.conv.dilation,
-                     block.rbr_reparam.conv.groups, bias=False)
-    bn = nn.BatchNorm2d(block.rbr_reparam.conv.out_channels)
-    bn.running_mean = block.rbr_reparam.bnstat.running_mean.squeeze()   #   Initialize the mean and var of BN with the statistics
-    bn.running_var = block.rbr_reparam.bnstat.running_var.squeeze()
-    std = (bn.running_var + bn.eps).sqrt()
-    conv.weight.data = block.rbr_reparam.conv.weight.data
-    bn.weight.data = std
-    bn.bias.data = block.rbr_reparam.biasadd.bias.data + bn.running_mean    # Initialize gamma = std and beta = bias + mean
+def switch_bnstat_to_convbn(model):
+    for n, block in model.named_modules():
+        if isinstance(block, RepVGGBlock):
+            assert hasattr(block, 'rbr_reparam')
+            assert hasattr(block.rbr_reparam, 'bnstat')
+            print('switch to ConvBN: ', n)
+            conv = nn.Conv2d(block.rbr_reparam.conv.in_channels, block.rbr_reparam.conv.out_channels,
+                             block.rbr_reparam.conv.kernel_size,
+                             block.rbr_reparam.conv.stride, block.rbr_reparam.conv.padding,
+                             block.rbr_reparam.conv.dilation,
+                             block.rbr_reparam.conv.groups, bias=False)
+            bn = nn.BatchNorm2d(block.rbr_reparam.conv.out_channels)
+            bn.running_mean = block.rbr_reparam.bnstat.running_mean.squeeze()  # Initialize the mean and var of BN with the statistics
+            bn.running_var = block.rbr_reparam.bnstat.running_var.squeeze()
+            std = (bn.running_var + bn.eps).sqrt()
+            conv.weight.data = block.rbr_reparam.conv.weight.data
+            bn.weight.data = std
+            bn.bias.data = block.rbr_reparam.biasadd.bias.data + bn.running_mean  # Initialize gamma = std and beta = bias + mean
 
-    convbn = nn.Sequential()
-    convbn.add_module('conv', conv)
-    convbn.add_module('bn', bn)
-    block.__delattr__('rbr_reparam')
-    block.rbr_reparam = convbn
+            convbn = nn.Sequential()
+            convbn.add_module('conv', conv)
+            convbn.add_module('bn', bn)
+            block.__delattr__('rbr_reparam')
+            block.rbr_reparam = convbn
+
+
+#   Insert a BN after conv3x3 (rbr_reparam). With no reasonable initialization of BN, the model will break down if you insist to train it.
+#   So you have to load the weights obtained through the BN statistics (please see the function "insert_bn" in this file).
+def directly_insert_bn_without_init(model):
+    for n, block in model.named_modules():
+        if isinstance(block, RepVGGBlock):
+            print('directly insert a BN with no initialization: ', n)
+            assert hasattr(block, 'rbr_reparam')
+            convbn = nn.Sequential()
+            convbn.add_module('conv', nn.Conv2d(block.rbr_reparam.in_channels, block.rbr_reparam.out_channels,
+                                              block.rbr_reparam.kernel_size,
+                                              block.rbr_reparam.stride, block.rbr_reparam.padding,
+                                              block.rbr_reparam.dilation,
+                                              block.rbr_reparam.groups, bias=False))  # Note bias=False
+            convbn.add_module('bn', nn.BatchNorm2d(block.rbr_reparam.out_channels))
+            block.__delattr__('rbr_reparam')
+            block.rbr_reparam = convbn
 
 
 def insert_bn():
@@ -117,10 +144,7 @@ def insert_bn():
 
     load_checkpoint(model, args.weights)
 
-    for n, m in model.named_modules():
-        if isinstance(m, RepVGGBlock):
-            switch_repvggblock_to_bnstat(m)
-            print('switch to BN Statistics: ', n)
+    switch_repvggblock_to_bnstat(model)
 
     cudnn.benchmark = True
 
@@ -166,10 +190,7 @@ def insert_bn():
             if i % 10 == 0:
                 progress.display(i)
 
-    for n, m in model.named_modules():
-        if isinstance(m, RepVGGBlock):
-            switch_bnstat_to_convbn(m)
-            print('switch to ConvBN: ', n)
+    switch_bnstat_to_convbn(model)
 
     torch.save(model.state_dict(), args.save)
 
