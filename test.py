@@ -13,6 +13,7 @@ import torchvision.datasets as datasets
 from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name
 import PIL
+from utils import load_checkpoint
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Test')
 parser.add_argument('data', metavar='DIR', help='path to dataset')
@@ -47,11 +48,7 @@ def test():
 
     if os.path.isfile(args.weights):
         print("=> loading checkpoint '{}'".format(args.weights))
-        checkpoint = torch.load(args.weights)
-        if 'state_dict' in checkpoint:
-            checkpoint = checkpoint['state_dict']
-        ckpt = {k.replace('module.', ''):v for k,v in checkpoint.items()}   # strip the names
-        model.load_state_dict(ckpt)
+        load_checkpoint(model, args.weights)
     else:
         print("=> no checkpoint found at '{}'".format(args.weights))
 
