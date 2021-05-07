@@ -101,7 +101,6 @@ def switch_bnstat_to_convbn(block):
     block.rbr_reparam = convbn
 
 
-
 def insert_bn():
     args = parser.parse_args()
 
@@ -116,12 +115,12 @@ def insert_bn():
         model = model.cuda()
         use_gpu = True
 
+    load_checkpoint(model, args.weights)
+
     for n, m in model.named_modules():
         if isinstance(m, RepVGGBlock):
             switch_repvggblock_to_bnstat(m)
             print('switch to BN Statistics: ', n)
-
-    load_checkpoint(model, args.weights)
 
     cudnn.benchmark = True
 
@@ -156,6 +155,8 @@ def insert_bn():
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(train_loader):
+            if i == args.num_batches:
+                break
             if use_gpu:
                 images = images.cuda(non_blocking=True)
             # Just forward
