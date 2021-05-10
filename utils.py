@@ -1,4 +1,5 @@
 import torch
+import math
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -101,3 +102,27 @@ def model_load_hdf5(model:torch.nn.Module, hdf5_path, ignore_keys='stage0.'):
         value = torch.from_numpy(np_value).float()
         assert tuple(value.size()) == tuple(param.size())
         param.data = value
+
+
+
+class WarmupCosineAnnealingLR(torch.optim.lr_scheduler._LRScheduler):
+
+    def __init__(self, optimizer, T_cosine_max, eta_min=0, last_epoch=-1, warmup=0):
+        self.eta_min = eta_min
+        self.T_cosine_max = T_cosine_max
+        self.warmup = warmup
+        super(WarmupCosineAnnealingLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup:
+            return [self.last_epoch / self.warmup * base_lr for base_lr in self.base_lrs]
+        else:
+            return [self.eta_min + (base_lr - self.eta_min) *
+                    (1 + math.cos(math.pi * (self.last_epoch - self.warmup) / (self.T_cosine_max - self.warmup))) / 2
+                    for base_lr in self.base_lrs]
+
+
+def log_msg(message, log_file):
+    print(message)
+    with open(log_file, 'a') as f:
+        print(message, file=f)

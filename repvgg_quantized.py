@@ -1,105 +1,82 @@
 import torch
 import torch.nn as nn
-from repvgg import get_RepVGG_func_by_name
-from utils import load_checkpoint
-
-# class RepVGGRestoredBlock(nn.Module):
-#
-#     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, groups=1):
-#         super().__init__()
-#         sq = nn.Sequential()
-#         sq.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-#                                                   kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False))
-#         sq.add_module('bn', nn.BatchNorm2d(out_channels))
-#         sq.add_module('relu', nn.ReLU())
-#         self.restore = sq
-#
-#     def forward(self, input):
-#         return self.restore(input)
-
+import math
+from collections import OrderedDict
+from torch.quantization import QuantStub, DeQuantStub
 
 class RepVGGQuant(nn.Module):
 
+    #   {0:
     def __init__(self,
                  repvgg_model,
-                 stage3_splits,
-                 width_multiplier=None,
-                 quant_stages=None):
+                 stage_sections,
+                 quant_stagesections):
         super(RepVGGQuant, self).__init__()
-        # repvgg = get_RepVGG_func_by_name(repvgg_name)(deploy=is_base_deploy)
-        # load_checkpoint(repvgg, base_weights)
 
-        self.stage0, self.stage1, self.stage2 = repvgg_model.stage0, repvgg_model.stage1, repvgg_model.stage2
-        if use_aux and split_stage3:
-            stage3_blocks = list(repvgg_model.stage3.children())
-            num_blocks = len(stage3_blocks)
-            assert num_blocks % 2 == 0
-            self.stage3_first = nn.Sequential(*stage3_blocks[:num_blocks // 2])
-            self.stage3_second = nn.Sequential(*stage3_blocks[num_blocks // 2:])
-        else:
-            self.stage3 = repvgg.stage3
+        self.body = nn.Sequential()
 
-        self.stage4, self.gap, self.linear = repvgg.stage4, repvgg.gap, repvgg.linear
+        assert 0 not in stage_sections
+        self.body.add_module('stage0', repvgg_model.stage0)
 
+        for stage_idx in [1, 2, 3, 4]:
+            origin_stage = repvgg_model.__getattr__('stage{}'.format(stage_idx))
+            if stage_idx in stage_sections:
+                sections = stage_sections[stage_idx]
+                origin_blocks = list(origin_stage.children())
+                blocks_per_sections = math.ceil(len(origin_blocks) / sections)
+                for section_idx in range(sections):
+                    cur_section_blocks = origin_blocks[section_idx * blocks_per_sections : min(len(origin_blocks), (section_idx + 1) * blocks_per_sections)]
+                    od = OrderedDict()      #   We don't use a list to construct nn.Sequential because we don't want the existence of QuantStub and DeQuantStub to change the param names
+                    do_quant = (stage_idx, section_idx) in quant_stagesections
+                    if do_quant:    #   Quant this section. Insert the quant and dequant stubs
+                        od['quant'] = QuantStub()
+                    for i, b in enumerate(cur_section_blocks):
+                        od[str(i)] = b
+                    if do_quant:
+                        od['dequant'] = DeQuantStub()
+                    cur_section = nn.Sequential(od)
+                    self.body.add_module('stage{}_{}'.format(stage_idx, section_idx), cur_section)
+            else:
+                if stage_idx in quant_stagesections:
+                    od = OrderedDict()
+                    od['quant'] = QuantStub()
+                    for i, b in enumerate(origin_stage.children()):
+                        od[str(i)] = b
+                    od['dequant'] = DeQuantStub()
+                    self.body.add_module('stage{}'.format(stage_idx), nn.Sequential(od))
+                else:
+                    self.body.add_module('stage{}'.format(stage_idx), origin_stage)
 
+        self.quant_stagesections = quant_stagesections
+        print('quant setting: ', self.quant_stagesections)
 
-        self.in_planes = min(64, int(64 * width_multiplier[0]))
-
-        self.stage0 = RestoredBlock(in_channels=3, out_channels=self.in_planes, kernel_size=3, stride=2, padding=1)
-        self.cur_layer_idx = 1
-        self.stage1 = self._make_stage(int(64 * width_multiplier[0]), num_blocks[0], stride=2, do_quant=True)
-        self.stage2 = self._make_stage(int(128 * width_multiplier[1]), num_blocks[1], stride=2, do_quant=True)
-        self.stage3 = self._make_stage(int(256 * width_multiplier[2]), num_blocks[2], stride=2)
-        self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
-        self.gap = nn.AdaptiveAvgPool2d(output_size=1)
-        self.linear = nn.Linear(int(512 * width_multiplier[3]), num_classes)
-
-
-    # def _make_stage(self, planes, num_blocks, stride, do_quant=False):
-    #     strides = [stride] + [1]*(num_blocks-1)
-    #     blocks = []
-    #     if do_quant:
-    #         blocks.append(QuantStub())
-    #     for stride in strides:
-    #         cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
-    #         blocks.append(RestoredBlock(in_channels=self.in_planes, out_channels=planes, kernel_size=3,
-    #                                   stride=stride, padding=1, groups=cur_groups))
-    #         self.in_planes = planes
-    #         self.cur_layer_idx += 1
-    #     if do_quant:
-    #         blocks.append(DeQuantStub())
-    #     return nn.Sequential(*blocks)
-
-    def _make_stage(self, planes, num_blocks, stride, do_quant=False):
-        strides = [stride] + [1]*(num_blocks-1)
-        blocks = OrderedDict()
-        if do_quant:
-            blocks['quant'] = QuantStub()
-        for i, stride in enumerate(strides):
-            cur_groups = self.override_groups_map.get(self.cur_layer_idx, 1)
-            blocks[str(i)] = RestoredBlock(in_channels=self.in_planes, out_channels=planes, kernel_size=3,
-                                      stride=stride, padding=1, groups=cur_groups)
-            self.in_planes = planes
-            self.cur_layer_idx += 1
-        if do_quant:
-            blocks['deq'] = DeQuantStub()
-        return nn.Sequential(blocks)
+        self.gap = repvgg_model.gap
+        self.linear = repvgg_model.linear
 
     def forward(self, x):
-        out = self.stage0(x)
-        out = self.stage1(out)
-        # print(out[0,:1,:1,:])
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
+        out = self.body(x)
         out = self.gap(out)
         out = out.view(out.size(0), -1)
-        # out = self.linear_quant(out)
         out = self.linear(out)
         return out
 
+    #   From https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html
     def fuse_model(self):
-        # pass
         for m in self.modules():
             if type(m) == nn.Sequential and hasattr(m, 'conv'):
-                torch.quantization.fuse_modules(m, ['conv', 'bn', 'relu'], inplace=True)
+                torch.quantization.fuse_modules(m, ['conv', 'bn', 'relu'], inplace=True)    #TODO note this
+                # torch.quantization.fuse_modules(m, ['conv', 'bn'], inplace=True)
+
+    def prepare_quant(self):
+        #   From https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html
+        self.fuse_model()
+        qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
+        for q in self.quant_stagesections:
+            if type(q) is int:
+                quant_stage_or_section = self.body.__getattr__('stage{}'.format(q))
+                print('prepared quant for stage', q)
+            else:
+                quant_stage_or_section = self.body.__getattr__('stage{}_{}'.format(q[0], q[1]))
+                print('prepared quant for stage', q[0], 'section', q[1])
+            quant_stage_or_section.qconfig = qconfig
+            torch.quantization.prepare_qat(quant_stage_or_section, inplace=True)

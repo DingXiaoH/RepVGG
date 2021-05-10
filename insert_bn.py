@@ -124,6 +124,9 @@ def directly_insert_bn_without_init(model):
                                               block.rbr_reparam.dilation,
                                               block.rbr_reparam.groups, bias=False))  # Note bias=False
             convbn.add_module('bn', nn.BatchNorm2d(block.rbr_reparam.out_channels))
+            convbn.add_module('relu', nn.ReLU())
+            print('conv bn relu')
+            block.nonlinearity = nn.Identity()  #TODO note this
             block.__delattr__('rbr_reparam')
             block.rbr_reparam = convbn
 
