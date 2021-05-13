@@ -53,6 +53,7 @@ class RepVGGQuant(nn.Module):
         self.gap = repvgg_model.gap
         self.linear = repvgg_model.linear
 
+
     def forward(self, x):
         out = self.body(x)
         out = self.gap(out)
@@ -84,6 +85,7 @@ class RepVGGQuant(nn.Module):
             quant_stage_or_section.qconfig = qconfig
             torch.quantization.prepare_qat(quant_stage_or_section, inplace=True)
 
+
     def quant_a_new_part(self, qs):
         if type(qs) is int:
             name = 'stage{}'.format(qs)
@@ -99,4 +101,18 @@ class RepVGGQuant(nn.Module):
         se.qconfig = self._get_qconfig()
         torch.quantization.prepare_qat(se, inplace=True)
         self.body.__setattr__(name, se)
+        self.quant_stagesections.append(qs)
+
+
+    def freeze_quant_bn(self):
+        for q in self.quant_stagesections:
+            if type(q) is int:
+                quant_stage_or_section = self.body.__getattr__('stage{}'.format(q))
+                print('freeze BN for stage', q)
+            else:
+                quant_stage_or_section = self.body.__getattr__('stage{}_{}'.format(q[0], q[1]))
+                print('freeze BN for stage', q[0], 'section', q[1])
+            quant_stage_or_section.apply(torch.nn.intrinsic.qat.freeze_bn_stats)  # TODO only freeze the quant part?
+
+
 

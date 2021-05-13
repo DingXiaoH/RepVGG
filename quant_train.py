@@ -229,7 +229,9 @@ def main_worker(gpu, ngpus_per_node, args):
     #   From now on, the code will be very similar to ordinary training
     # ===================================================
 
-    if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0):
+    is_main = not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0)
+
+    if is_main:
         for n, p in qat_model.named_parameters():
             print(n, p.size())
         for n, p in qat_model.named_buffers():
@@ -333,7 +335,7 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, qat_model, criterion, args)
         return
 
-    validate(val_loader, qat_model, criterion, args)    #TODO note this
+    # validate(val_loader, qat_model, criterion, args)    #TODO note this
 
     # if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0):
     #     acc1 = validate(val_loader, qat_model, criterion, args)
@@ -346,19 +348,20 @@ def main_worker(gpu, ngpus_per_node, args):
         # adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, qat_model, criterion, optimizer, epoch, args, lr_scheduler)
+        train(train_loader, qat_model, criterion, optimizer, epoch, args, lr_scheduler, is_main=is_main)
 
         if epoch > (3 * args.epochs // 8):
             # Freeze quantizer parameters
             qat_model.apply(torch.quantization.disable_observer)
-        # if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
+        if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
         #     Freeze batch norm mean and variance estimates
-            # qat_model.apply(torch.nn.intrinsic.qat.freeze_bn_stats) #TODO only freeze the quant part?
+            qat_model.module.freeze_quant_bn()
+
 
 
 
         # evaluate on validation set
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0):
+        if is_main:
             acc1 = validate(val_loader, qat_model, criterion, args)
             msg = '{}, quant {}, epoch {}, QAT acc {}'.format(args.arch, args.quant, epoch, acc1)
             log_msg(msg, 'quant_exp.txt')
@@ -376,7 +379,7 @@ def main_worker(gpu, ngpus_per_node, args):
             }, is_best, best_filename='{}_{}.pth.tar'.format(args.arch, args.quant))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
+def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler, is_main):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -423,9 +426,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
         if lr_scheduler is not None:
             lr_scheduler.step()
 
-        if i % args.print_freq == 0:
+        if is_main and i % args.print_freq == 0:
             progress.display(i)
-        if i % 1000 == 0 and lr_scheduler is not None:
+        if is_main and i % 1000 == 0 and lr_scheduler is not None:
             print('cur lr: ', lr_scheduler.get_lr()[0])
 
 
