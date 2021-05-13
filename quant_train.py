@@ -80,6 +80,8 @@ parser.add_argument('--last-weights', default=None, type=str,
                     help='the weights of the last iteration. Ignore it if this is the first quant iteration')
 parser.add_argument('--quant', default='1_2', type=str,
                     help='the quant set. For example, "1_2_3-0-1-2-3" means you want to quantize stage1, stage2, and the first 4 sections of stage3, and "2_3" means stage2 and the whole stage3')
+parser.add_argument('--last-quant', default=None, type=str,
+                    help='the last quant set. Ignore it if this is the first iteration')
 
 
 
@@ -168,7 +170,8 @@ def main_worker(gpu, ngpus_per_node, args):
     from repvgg_quantized import RepVGGQuant
     if 'A' in args.arch:
         #   RepVGG-A has 2, 4, 14 layers in the middle 3 stages. We only split the 14-layer stage
-        stage_sections = {3: 4}   # split stage3 into 4 sections
+        # stage_sections = {3: 4}   # split stage3 into 4 sections
+        stage_sections = {3: 7}  # split stage3 into 7 sections     2021/05/12
         # stage_sections = {} #TODO
     elif 'B' in args.arch:
         #   RepVGG-B has 4, 6, 16 layers in the middle 3 stages. We split stage2 and stage3
@@ -178,27 +181,49 @@ def main_worker(gpu, ngpus_per_node, args):
 
     #   "1_2_3-0-1-2-3"
     #   Parse the quant set. For example, "1_2_3-0-1-2-3"
-    quant_stagesections = []
-    ss = args.quant.split('_')
-    for s in ss:
-        if len(s) == 1:
-            stage_idx = int(s)
-            assert stage_idx < 5
-            quant_stagesections.append(stage_idx)
-        else:
-            sections = s.split('-')
-            stage_idx = int(sections[0])
-            for i in range(1, len(sections)):
-                section_idx = int(sections[i])
-                quant_stagesections.append((stage_idx, section_idx))
+    def parse_quant_stagesections(quant_arg):
+        q = []
+        ss = quant_arg.split('_')
+        for s in ss:
+            if len(s) == 1:
+                stage_idx = int(s)
+                assert stage_idx < 5
+                q.append(stage_idx)
+            else:
+                sections = s.split('-')
+                stage_idx = int(sections[0])
+                for i in range(1, len(sections)):
+                    section_idx = int(sections[i])
+                    q.append((stage_idx, section_idx))
+        return q
 
-    qat_model = RepVGGQuant(repvgg_model=base_model, stage_sections=stage_sections, quant_stagesections=quant_stagesections)
-
-    qat_model.prepare_quant()
-
-    if args.last_weights is not None:
+    quant_stagesections = parse_quant_stagesections(args.quant)
+    if args.last_quant is None: #   This is the first iteration
+        qat_model = RepVGGQuant(repvgg_model=base_model, stage_sections=stage_sections, quant_stagesections=quant_stagesections)
+        qat_model.prepare_quant()
+    else:
+        last_quant_stagesections = parse_quant_stagesections(args.last_quant)
+        qat_model = RepVGGQuant(repvgg_model=base_model, stage_sections=stage_sections, quant_stagesections=last_quant_stagesections)
+        qat_model.prepare_quant()
         assert args.base_weights is None
-        base_model.load_state_dict(torch.load(args.last_weights))
+        assert args.last_weights is not None
+
+        weights = torch.load(args.last_weights)
+        if 'state_dict' in weights:
+            weights = weights['state_dict']
+        w = {k.replace('module.', '') : v for k , v in weights.items()}
+        # '''
+        # New
+        # body.stage3_0.0.rbr_reparam.conv.0.weight", "body.stage3_0.0.rbr_reparam.conv.1.weight", "body.stage3_0.0.rbr_reparam.conv.1.bias", "body.stage3_0.0.rbr_reparam.conv.1.running_mean", "body.stage3_0.0.rbr_reparam.conv.1.running_var", "body.stage3_0.0.rbr_reparam.conv.1.num_batches_tracked"'''
+        # '''
+        # Old
+        # "body.stage3_0.0.rbr_reparam.conv.bn.weight", "body.stage3_0.0.rbr_reparam.conv.bn.bias", "body.stage3_0.0.rbr_reparam.conv.bn.running_mean", "body.stage3_0.0.rbr_reparam.conv.bn.running_var", "body.stage3_0.0.rbr_reparam.conv.bn.num_batches_tracked", "body.stage3_0.0.rbr_reparam.conv.weight", "body.stage3_0.0.rbr_reparam.conv.bn.weight", "body.stage3_0.0.rbr_reparam.conv.bn.bias", "body.stage3_0.0.rbr_reparam.conv.bn.running_mean", "body.stage3_0.0.rbr_reparam.conv.bn.running_var"
+        # '''
+        qat_model.load_state_dict(w)
+        for qs in quant_stagesections:
+            if qs not in last_quant_stagesections:
+                print('quant a new part', qs)
+                qat_model.quant_a_new_part(qs)
 
     #===================================================
     #   From now on, the code will be very similar to ordinary training
@@ -326,9 +351,9 @@ def main_worker(gpu, ngpus_per_node, args):
         if epoch > (3 * args.epochs // 8):
             # Freeze quantizer parameters
             qat_model.apply(torch.quantization.disable_observer)
-        if epoch > (2 * args.epochs // 8):
-            # Freeze batch norm mean and variance estimates
-            qat_model.apply(torch.nn.intrinsic.qat.freeze_bn_stats)
+        # if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
+        #     Freeze batch norm mean and variance estimates
+            # qat_model.apply(torch.nn.intrinsic.qat.freeze_bn_stats) #TODO only freeze the quant part?
 
 
 

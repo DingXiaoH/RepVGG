@@ -67,10 +67,13 @@ class RepVGGQuant(nn.Module):
                 torch.quantization.fuse_modules(m, ['conv', 'bn', 'relu'], inplace=True)    #TODO note this
                 # torch.quantization.fuse_modules(m, ['conv', 'bn'], inplace=True)
 
+    def _get_qconfig(self):
+        return torch.quantization.get_default_qat_qconfig('fbgemm')
+
     def prepare_quant(self):
         #   From https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html
         self.fuse_model()
-        qconfig = torch.quantization.get_default_qat_qconfig('fbgemm')
+        qconfig = self._get_qconfig()
         for q in self.quant_stagesections:
             if type(q) is int:
                 quant_stage_or_section = self.body.__getattr__('stage{}'.format(q))
@@ -80,3 +83,20 @@ class RepVGGQuant(nn.Module):
                 print('prepared quant for stage', q[0], 'section', q[1])
             quant_stage_or_section.qconfig = qconfig
             torch.quantization.prepare_qat(quant_stage_or_section, inplace=True)
+
+    def quant_a_new_part(self, qs):
+        if type(qs) is int:
+            name = 'stage{}'.format(qs)
+        else:
+            name = 'stage{}_{}'.format(qs[0], qs[1])
+        quant_stage_or_section = self.body.__getattr__(name)
+        od = OrderedDict()
+        od['quant'] = QuantStub()
+        for i, b in enumerate(quant_stage_or_section.children()):
+            od[str(i)] = b
+        od['dequant'] = DeQuantStub()
+        se = nn.Sequential(od)
+        se.qconfig = self._get_qconfig()
+        torch.quantization.prepare_qat(se, inplace=True)
+        self.body.__setattr__(name, se)
+
