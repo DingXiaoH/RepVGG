@@ -353,9 +353,9 @@ def main_worker(gpu, ngpus_per_node, args):
         if epoch > (3 * args.epochs // 8):
             # Freeze quantizer parameters
             qat_model.apply(torch.quantization.disable_observer)
-        if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
+        # if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
         #     Freeze batch norm mean and variance estimates
-            qat_model.module.freeze_quant_bn()
+        #     qat_model.module.freeze_quant_bn()
 
 
 

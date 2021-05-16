@@ -25,7 +25,10 @@ def convert():
         checkpoint = torch.load(args.load)
         if 'state_dict' in checkpoint:
             checkpoint = checkpoint['state_dict']
+        elif 'model' in checkpoint:
+            checkpoint = checkpoint['model']
         ckpt = {k.replace('module.', ''): v for k, v in checkpoint.items()}  # strip the names
+        print(ckpt.keys())
         train_model.load_state_dict(ckpt)
     else:
         print("=> no checkpoint found at '{}'".format(args.load))
