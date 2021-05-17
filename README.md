@@ -10,7 +10,7 @@ The MegEngine version: https://github.com/megvii-model/RepVGG.
 
 TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
 
-Another nice PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls.
+Another PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls. He also presented detailed benchmarks at https://zcls.readthedocs.io/en/latest/benchmark-repvgg/. Nice work!
 
 Included in a famous model zoo (over 7k stars) https://github.com/rwightman/pytorch-image-models.
 
