@@ -21,11 +21,14 @@ class RepVGGBlock(nn.Module):
         self.in_channels = in_channels
 
         assert kernel_size == 3
-        assert padding == 1
 
         #   Considering dilation, the actuall size of rbr_dense is  kernel_size + 2*(dilation - 1)
         #   For the same output size:     (padding - padding_11) ==  (kernel_size + 2*(dilation - 1) - 1) // 2
         padding_11 = padding - (kernel_size + 2*(dilation - 1) - 1) // 2
+        assert padding_11 >= 0, 'It seems that your configuration of kernelsize (k), padding (p) and dilation (d) will ' \
+                                'reduce the output size. In this case, you should crop the input to conv1x1. ' \
+                                'Since this is not a common case, we do not consider it. But it is easy to implement (e.g., self.rbr_1x1(inputs[:,:,1:-1,1:-1])). ' \
+                                'The common combinations are (k=3,p=1,d=1) (no dilation), (k=3,p=2,d=2) and (k=3,p=4,d=4) (PSPNet).'
 
         self.nonlinearity = nn.ReLU()
 
