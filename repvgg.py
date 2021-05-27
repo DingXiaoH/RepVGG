@@ -4,10 +4,10 @@ import torch
 import copy
 from se_block import SEBlock
 
-def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
+def conv_bn(in_channels, out_channels, kernel_size, stride, padding, dilation=1, groups=1):
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                                                  kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False))
+                                                  kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=False))
     result.add_module('bn', nn.BatchNorm2d(num_features=out_channels))
     return result
 
@@ -23,7 +23,9 @@ class RepVGGBlock(nn.Module):
         assert kernel_size == 3
         assert padding == 1
 
-        padding_11 = padding - kernel_size // 2
+        #   Considering dilation, the actuall size of rbr_dense is  kernel_size + 2*(dilation - 1)
+        #   For the same output size:     (padding - padding_11) ==  (kernel_size + 2*(dilation - 1) - 1) // 2
+        padding_11 = padding - (kernel_size + 2*(dilation - 1) - 1) // 2
 
         self.nonlinearity = nn.ReLU()
 
