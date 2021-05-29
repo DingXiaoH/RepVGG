@@ -1,6 +1,6 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-Update (May 30, 2021): finished and tested the code for quantization. It turns out that a simple quantization-aware training (torch.quantization.prepare_qat) is good enought to realize in8 quant with around 0.5% accuracy drop. Will update the code in several days.
+Update (May 30, 2021): finished and tested the code for quantization. It turns out that a simple quantization-aware training (torch.quantization.prepare_qat) is good enough to realize in8 quant with around 0.5% accuracy drop. Will update the code in several days.
 
 Update (Apr 25, 2021): a deeper RepVGG model achieves **83.55\% top-1 accuracy on ImageNet** with [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html) blocks and an input resolution of 320x320. Note that it is trained with 224x224 but tested with 320x320, so that it is still trainable with a global batch size of 256 on a single machine with 8 1080Ti GPUs. If you test it with 224x224, the top-1 accuracy will be 81.82%. It has 1, 8, 14, 24, 1 layers in the 5 stages respectively. The width multipliers are a=2.5 and b=5 (the same as RepVGG-B2). The model name is "RepVGG-D2se". The code for building the model (repvgg.py) and testing with 320x320 (the testing example below) has been updated and the weights have been released at Google Drive and Baidu Cloud. Please check the links below.
 
