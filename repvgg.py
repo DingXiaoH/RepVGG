@@ -4,10 +4,10 @@ import torch
 import copy
 from se_block import SEBlock
 
-def conv_bn(in_channels, out_channels, kernel_size, stride, padding, dilation=1, groups=1):
+def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
     result.add_module('conv', nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                                                  kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=False))
+                                                  kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False))
     result.add_module('bn', nn.BatchNorm2d(num_features=out_channels))
     return result
 
@@ -21,14 +21,9 @@ class RepVGGBlock(nn.Module):
         self.in_channels = in_channels
 
         assert kernel_size == 3
+        assert padding == 1
 
-        #   Considering dilation, the actuall size of rbr_dense is  kernel_size + 2*(dilation - 1)
-        #   For the same output size:     (padding - padding_11) ==  (kernel_size + 2*(dilation - 1) - 1) // 2
-        padding_11 = padding - (kernel_size + 2*(dilation - 1) - 1) // 2
-        assert padding_11 >= 0, 'It seems that your configuration of kernelsize (k), padding (p) and dilation (d) will ' \
-                                'reduce the output size. In this case, you should crop the input of conv1x1. ' \
-                                'Since this is not a common case, we do not consider it. But it is easy to implement (e.g., self.rbr_1x1(inputs[:,:,1:-1,1:-1])). ' \
-                                'The common combinations are (k=3,p=1,d=1) (no dilation), (k=3,p=2,d=2) and (k=3,p=4,d=4) (PSPNet).'
+        padding_11 = padding - kernel_size // 2
 
         self.nonlinearity = nn.ReLU()
 
@@ -43,7 +38,7 @@ class RepVGGBlock(nn.Module):
 
         else:
             self.rbr_identity = nn.BatchNorm2d(num_features=in_channels) if out_channels == in_channels and stride == 1 else None
-            self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups)
+            self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
             self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, padding=padding_11, groups=groups)
             print('RepVGG Block, identity = ', self.rbr_identity)
 

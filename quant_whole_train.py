@@ -16,22 +16,23 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from utils import AverageMeter, accuracy, ProgressMeter
+from utils import accuracy, AverageMeter, ProgressMeter, log_msg, WarmupCosineAnnealingLR, load_checkpoint
+from noris_dataset import ImageNetNoriDataset
+import math
+import copy
 
-from repvgg import get_RepVGG_func_by_name
+best_acc1 = 0
 
 IMAGENET_TRAINSET_SIZE = 1281167
 
-
-parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
+parser = argparse.ArgumentParser(description='PyTorch Whole Model Quant')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='RepVGG-A0')
 parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=120, type=int, metavar='N',
-                    help='number of total epochs to run')
+parser.add_argument('--epochs', default=8, type=int, metavar='N',
+                    help='number of epochs for each run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
@@ -39,8 +40,10 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate', dest='lr')
+parser.add_argument('--val-batch-size', default=100, type=int, metavar='V',
+                    help='validation batch size')
+parser.add_argument('--lr', '--learning-rate', default=1e-4, type=float,
+                    metavar='LR', help='learning rate for finetuning', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
@@ -56,7 +59,7 @@ parser.add_argument('--world-size', default=-1, type=int,
                     help='number of nodes for distributed training')
 parser.add_argument('--rank', default=-1, type=int,
                     help='node rank for distributed training')
-parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
+parser.add_argument('--dist-url', default='tcp://127.0.0.1:23333', type=str,
                     help='url used to set up distributed training')
 parser.add_argument('--dist-backend', default='nccl', type=str,
                     help='distributed backend')
@@ -69,8 +72,13 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--base-weights', default=None, type=str,
+                    help='weights of the base model. Ignore it if this is not the first quant iteration')
+parser.add_argument('--tag', default='whole', type=str,
+                    help='weights of the base model. Ignore it if this is not the first quant iteration')
+parser.add_argument('--fpfinetune', dest='fpfinetune', action='store_true',
+                    help='full precision finetune')
 
-best_acc1 = 0
 
 
 def sgd_optimizer(model, lr, momentum, weight_decay):
@@ -80,7 +88,7 @@ def sgd_optimizer(model, lr, momentum, weight_decay):
             continue
         apply_weight_decay = weight_decay
         apply_lr = lr
-        if 'bias' in key or 'bn' in key:
+        if value.ndimension() < 2:  #TODO note this
             apply_weight_decay = 0
             print('set weight decay=0 for {}'.format(key))
         if 'bias' in key:
@@ -127,6 +135,7 @@ def main():
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
+    log_file = 'quant_{}_exp.txt'.format(args.tag)
 
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
@@ -141,44 +150,68 @@ def main_worker(gpu, ngpus_per_node, args):
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.rank)
 
+    #   1.  Build and load base model
+    from repvgg import get_RepVGG_func_by_name
     repvgg_build_func = get_RepVGG_func_by_name(args.arch)
+    base_model = repvgg_build_func(deploy=True)
+    from insert_bn import directly_insert_bn_without_init
+    directly_insert_bn_without_init(base_model)
+    if args.base_weights is not None:
+        load_checkpoint(base_model, args.base_weights)
+        # base_weights = {}
+        # for k, v in torch.load(args.base_weights).items():
+        #     base_weights[k.replace('restore', 'rbr_reparam')] = v   #TODO
 
-    model = repvgg_build_func(deploy=False)
+    #   2.
+    if not args.fpfinetune:
+        from repvgg_whole_quantized import RepVGGWholeQuant
+        qat_model = RepVGGWholeQuant(repvgg_model=base_model)
+        qat_model.prepare_quant()
+    else:
+        qat_model = base_model
+        log_msg('===================== not QAT, just full-precision finetune ===========', log_file)
+
+    #===================================================
+    #   From now on, the code will be very similar to ordinary training
+    # ===================================================
+
+    is_main = not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0)
+
+    if is_main:
+        for n, p in qat_model.named_parameters():
+            print(n, p.size())
+        for n, p in qat_model.named_buffers():
+            print(n, p.size())
+        log_msg('epochs {}, lr {}, weight_decay {}'.format(args.epochs, args.lr, args.weight_decay), log_file)
+        #   You will see it now has quantization-related parameters (zero-points and scales)
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
     elif args.distributed:
-        # For multiprocessing distributed, DistributedDataParallel constructor
-        # should always set the single device scope, otherwise,
-        # DistributedDataParallel will use all available devices.
         if args.gpu is not None:
             torch.cuda.set_device(args.gpu)
-            model.cuda(args.gpu)
-            # When using a single GPU per process and per
-            # DistributedDataParallel, we need to divide the batch size
-            # ourselves based on the total number of GPUs we have
+            qat_model.cuda(args.gpu)
             args.batch_size = int(args.batch_size / ngpus_per_node)
             args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+            qat_model = torch.nn.parallel.DistributedDataParallel(qat_model, device_ids=[args.gpu])
         else:
-            model.cuda()
-            # DistributedDataParallel will divide and allocate batch_size to all
-            # available GPUs if device_ids are not set
-            model = torch.nn.parallel.DistributedDataParallel(model)
+            qat_model.cuda()
+            qat_model = torch.nn.parallel.DistributedDataParallel(qat_model)
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
-        model = model.cuda(args.gpu)
+        qat_model = qat_model.cuda(args.gpu)
     else:
         # DataParallel will divide and allocate batch_size to all available GPUs
-        model = torch.nn.DataParallel(model).cuda()
+        qat_model = torch.nn.DataParallel(qat_model).cuda()
 
 
-    # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
+    optimizer = sgd_optimizer(qat_model, args.lr, args.momentum, args.weight_decay)
 
-    optimizer = sgd_optimizer(model, args.lr, args.momentum, args.weight_decay)
+    warmup_epochs = 1
+    lr_scheduler = WarmupCosineAnnealingLR(optimizer=optimizer, T_cosine_max=args.epochs * IMAGENET_TRAINSET_SIZE // args.batch_size // ngpus_per_node,
+                            eta_min=0, warmup=warmup_epochs * IMAGENET_TRAINSET_SIZE // args.batch_size // ngpus_per_node)
 
-    lr_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=args.epochs * IMAGENET_TRAINSET_SIZE // args.batch_size // ngpus_per_node)
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -195,7 +228,7 @@ def main_worker(gpu, ngpus_per_node, args):
             if args.gpu is not None:
                 # best_acc1 may be from a checkpoint from a different GPU
                 best_acc1 = best_acc1.to(args.gpu)
-            model.load_state_dict(checkpoint['state_dict'])
+            qat_model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             lr_scheduler.load_state_dict(checkpoint['scheduler'])
             print("=> loaded checkpoint '{}' (epoch {})"
@@ -211,14 +244,15 @@ def main_worker(gpu, ngpus_per_node, args):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
-    train_dataset = datasets.ImageFolder(
-        traindir,
-        transforms.Compose([
+    train_trans = transforms.Compose([
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
-        ]))
+        ])
+
+    # train_dataset = datasets.ImageFolder(traindir, transform=train_trans)
+    train_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.train.nori.list', train_trans)  #TODO
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -230,21 +264,31 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
 
-    val_dataset = datasets.ImageFolder(valdir, transforms.Compose([
+    val_trans = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
             normalize,
-        ]))
+        ])
+
+    # val_dataset = datasets.ImageFolder(valdir, val_trans)
+    val_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.val.nori.list', val_trans)    #TODO
+
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
-        batch_size=args.batch_size, shuffle=False,
+        batch_size=args.val_batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-
     if args.evaluate:
-        validate(val_loader, model, criterion, args)
+        validate(val_loader, qat_model, criterion, args)
         return
+
+    # validate(val_loader, qat_model, criterion, args)    #TODO note this
+
+    # if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0):
+    #     acc1 = validate(val_loader, qat_model, criterion, args)
+    #     msg = '{}, quant, init, QAT acc {}'.format(args.arch, acc1)
+    #     log_msg(msg, 'quant_exp.txt')
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
@@ -252,28 +296,41 @@ def main_worker(gpu, ngpus_per_node, args):
         # adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler)
+        train(train_loader, qat_model, criterion, optimizer, epoch, args, lr_scheduler, is_main=is_main)
+
+        # if epoch > (3 * args.epochs // 8):
+            # Freeze quantizer parameters
+            # qat_model.apply(torch.quantization.disable_observer)  #TODO canceld at 2021/05/30
+
+        # if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
+        #     Freeze batch norm mean and variance estimates
+        #     qat_model.module.freeze_quant_bn()
+
+
+
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        if is_main:
+            acc1 = validate(val_loader, qat_model, criterion, args)
+            msg = '{}, base{}, quant, epoch {}, QAT acc {}'.format(args.arch, args.base_weights, epoch, acc1)
+            log_msg(msg, log_file)
 
-        # remember best acc@1 and save checkpoint
-        is_best = acc1 > best_acc1
-        best_acc1 = max(acc1, best_acc1)
+            is_best = acc1 > best_acc1
+            best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
-                'state_dict': model.state_dict(),
+                'state_dict': qat_model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
                 'scheduler': lr_scheduler.state_dict(),
-            }, is_best)
+            }, is_best,
+                filename = '{}_{}.pth.tar'.format(args.arch, args.tag),
+                best_filename='{}_{}_best.pth.tar'.format(args.arch, args.tag))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
+def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler, is_main):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -298,6 +355,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
             target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
+
         output = model(images)
         loss = criterion(output, target)
 
@@ -316,11 +374,12 @@ def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        lr_scheduler.step()
+        if lr_scheduler is not None:
+            lr_scheduler.step()
 
-        if i % args.print_freq == 0:
+        if is_main and i % args.print_freq == 0:
             progress.display(i)
-        if i % 1000 == 0:
+        if is_main and i % 1000 == 0 and lr_scheduler is not None:
             print('cur lr: ', lr_scheduler.get_lr()[0])
 
 
@@ -342,10 +401,8 @@ def validate(val_loader, model, criterion, args):
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            if args.gpu is not None:
-                images = images.cuda(args.gpu, non_blocking=True)
-            if torch.cuda.is_available():
-                target = target.cuda(args.gpu, non_blocking=True)
+            images = images.cuda(args.gpu, non_blocking=True)
+            target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
             output = model(images)
@@ -364,7 +421,6 @@ def validate(val_loader, model, criterion, args):
             if i % args.print_freq == 0:
                 progress.display(i)
 
-
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
@@ -372,10 +428,11 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename, best_filename):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filename, best_filename)
+
 
 
 
