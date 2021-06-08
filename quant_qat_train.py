@@ -15,9 +15,7 @@ import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-from utils import accuracy, AverageMeter, ProgressMeter, log_msg, WarmupCosineAnnealingLR, load_checkpoint
-from noris_dataset import ImageNetNoriDataset
+from utils import accuracy, AverageMeter, ProgressMeter, log_msg, WarmupCosineAnnealingLR, load_checkpoint, get_ImageNet_train_dataset, get_ImageNet_val_dataset
 import math
 import copy
 
@@ -239,8 +237,6 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -252,7 +248,7 @@ def main_worker(gpu, ngpus_per_node, args):
         ])
 
     # train_dataset = datasets.ImageFolder(traindir, transform=train_trans)
-    train_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.train.nori.list', train_trans)  #TODO
+    train_dataset = get_ImageNet_train_dataset(args, train_trans)
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
@@ -272,7 +268,7 @@ def main_worker(gpu, ngpus_per_node, args):
         ])
 
     # val_dataset = datasets.ImageFolder(valdir, val_trans)
-    val_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.val.nori.list', val_trans)    #TODO
+    val_dataset =get_ImageNet_val_dataset(args, val_trans)
 
     val_loader = torch.utils.data.DataLoader(
         val_dataset,

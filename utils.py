@@ -1,5 +1,7 @@
 import torch
 import math
+import torchvision.datasets as datasets
+import os
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -126,3 +128,27 @@ def log_msg(message, log_file):
     print(message)
     with open(log_file, 'a') as f:
         print(message, file=f)
+
+
+def get_ImageNet_train_dataset(args, trans):
+    if os.path.exists('/home/dingxiaohan/ndp/imagenet.train.nori.list'):
+        #   This is the data source on our machine. You won't need it.
+        from noris_dataset import ImageNetNoriDataset
+        train_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.train.nori.list', trans)
+    else:
+        #   Your ImageNet directory
+        traindir = os.path.join(args.data, 'train')
+        train_dataset = datasets.ImageFolder(traindir, trans)
+    return train_dataset
+
+
+def get_ImageNet_val_dataset(args, trans):
+    if os.path.exists('/home/dingxiaohan/ndp/imagenet.val.nori.list'):
+        #   This is the data source on our machine. You won't need it.
+        from noris_dataset import ImageNetNoriDataset
+        val_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.val.nori.list', trans)
+    else:
+        #   Your ImageNet directory
+        traindir = os.path.join(args.data, 'val')
+        val_dataset = datasets.ImageFolder(traindir, trans)
+    return val_dataset

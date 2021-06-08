@@ -9,13 +9,10 @@ import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name, RepVGGBlock
 import PIL
-from utils import load_checkpoint
-from noris_dataset import ImageNetNoriDataset
-
+from utils import load_checkpoint, get_ImageNet_train_dataset
 
 #   Get the mean and std on every conv3x3 (before the bias-adding) on the train set. Then use such data to initialize BN layers and insert them after conv3x3.
 #   May, 07, 2021
@@ -172,11 +169,8 @@ def insert_bn():
             transforms.ToTensor(),
             normalize])
     print('data aug: ', trans)
-    if os.path.exists('/home/dingxiaohan/ndp/imagenet.train.nori.list'):
-        train_dataset = ImageNetNoriDataset('/home/dingxiaohan/ndp/imagenet.train.nori.list', trans)
-    else:
-        traindir = os.path.join(args.data, 'train')
-        train_dataset = datasets.ImageFolder(traindir, trans)
+
+    train_dataset = get_ImageNet_train_dataset(args, trans)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
