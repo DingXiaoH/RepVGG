@@ -4,7 +4,6 @@ from torch.quantization import QuantStub, DeQuantStub
 
 class RepVGGWholeQuant(nn.Module):
 
-    #   {0:
     def __init__(self, repvgg_model):
         super(RepVGGWholeQuant, self).__init__()
         self.quant = QuantStub()
@@ -30,8 +29,9 @@ class RepVGGWholeQuant(nn.Module):
     def fuse_model(self):
         for m in self.modules():
             if type(m) == nn.Sequential and hasattr(m, 'conv'):
-                torch.quantization.fuse_modules(m, ['conv', 'bn', 'relu'], inplace=True)    #TODO note this
-                # torch.quantization.fuse_modules(m, ['conv', 'bn'], inplace=True)
+                # Note that we moved ReLU from "block.nonlinearity" into "rbr_reparam" (nn.Sequential).
+                # This makes it more convenient to fuse operators using off-the-shelf APIs.
+                torch.quantization.fuse_modules(m, ['conv', 'bn', 'relu'], inplace=True)
 
     def _get_qconfig(self):
         return torch.quantization.get_default_qat_qconfig('fbgemm')
