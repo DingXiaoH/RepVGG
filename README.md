@@ -1,6 +1,6 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-Update (June 8, 2021): found out that high-performance quantization required a custom weight decay. Such a weight decay also improves the full-precision accuracy. Today I will release the code for such weight decay and quantization-aware training (QAT). The hyper-parameters for QAT may not be optimal and I am still working on it. Will release the quantized models after tuning the hyper-parameters and finishing the QAT.
+Update (June 8, 2021): found out that high-performance quantization required a custom weight decay. Such a weight decay also improves the full-precision accuracy. Released the code for such weight decay and quantization-aware training (QAT) but not tested. The hyper-parameters for QAT may not be optimal and I am still working on it. Will release the quantized models after tuning the hyper-parameters and finishing the QAT.
 
 Update (May 30, 2021): finished and tested the code for quantization. It turns out that a simple quantization-aware training (torch.quantization.prepare_qat) is good enough to realize in8 quant with around 0.5% accuracy drop. Will update the code in several days.
 
