@@ -55,6 +55,26 @@ class RepVGGBlock(nn.Module):
         return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
 
+    #   Optional. This improves the accuracy and facilitates quantization.
+    #   1.  Cancel the original weight decay on rbr_dense.conv.weight and rbr_1x1.conv.weight.
+    #   2.  Use like this.
+    #       loss = criterion(....)
+    #       for every RepVGGBlock blk:
+    #           loss += weight_decay_coefficient * 0.5 * blk.get_cust_L2()
+    #       optimizer.zero_grad()
+    #       loss.backward()
+    def get_cust_L2(self):
+        K3 = self.rbr_dense.conv.weight
+        K1 = self.rbr_1x1.conv.weight
+        t3 = (self.rbr_dense.bn.weight / ((self.rbr_dense.bn.running_var + self.rbr_dense.bn.eps).sqrt())).reshape(-1, 1, 1, 1).detach()
+        t1 = (self.rbr_1x1.bn.weight / ((self.rbr_1x1.bn.running_var + self.rbr_1x1.bn.eps).sqrt())).reshape(-1, 1, 1, 1).detach()
+
+        l2_loss_circle = (K3 ** 2).sum() - (K3[:, :, 1:2, 1:2] ** 2).sum()      # The L2 loss of the "circle" of weights in 3x3 kernel. Use regular L2 on them.
+        eq_kernel = K3[:, :, 1:2, 1:2] * t3 + K1 * t1                           # The equivalent resultant central point of 3x3 kernel.
+        l2_loss_eq_kernel = (eq_kernel ** 2 / (t3 ** 2 + t1 ** 2)).sum()        # Normalize for an L2 coefficient comparable to regular L2.
+        return l2_loss_eq_kernel + l2_loss_circle
+
+
 
 #   This func derives the equivalent kernel and bias in a DIFFERENTIABLE way.
 #   You can get the equivalent kernel and bias at any time and do whatever you want,

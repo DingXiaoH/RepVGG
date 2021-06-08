@@ -65,9 +65,9 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
 parser.add_argument('--base-weights', default=None, type=str,
-                    help='weights of the base model. Ignore it if this is not the first quant iteration')
-parser.add_argument('--tag', default='whole', type=str,
-                    help='weights of the base model. Ignore it if this is not the first quant iteration')
+                    help='weights of the base model.')
+parser.add_argument('--tag', default='testtest', type=str,
+                    help='the tag for identifying the log and model files. Just a string.')
 parser.add_argument('--fpfinetune', dest='fpfinetune', action='store_true',
                     help='full precision finetune')
 parser.add_argument('--fixobserver', dest='fixobserver', action='store_true',

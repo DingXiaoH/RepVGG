@@ -67,18 +67,20 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--custwd', dest='custwd', action='store_true',
+                    help='Use custom weight decay. It improves the accuracy and makes quantization easier.')
 
 best_acc1 = 0
 
 
-def sgd_optimizer(model, lr, momentum, weight_decay):
+def sgd_optimizer(model, lr, momentum, weight_decay, use_custwd):
     params = []
     for key, value in model.named_parameters():
         if not value.requires_grad:
             continue
         apply_weight_decay = weight_decay
         apply_lr = lr
-        if 'bias' in key or 'bn' in key:
+        if (use_custwd and ('rbr_dense' in key or 'rbr_1x1' in key)) or 'bias' in key or 'bn' in key:
             apply_weight_decay = 0
             print('set weight decay=0 for {}'.format(key))
         if 'bias' in key:
@@ -174,7 +176,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
 
-    optimizer = sgd_optimizer(model, args.lr, args.momentum, args.weight_decay)
+    optimizer = sgd_optimizer(model, args.lr, args.momentum, args.weight_decay, args.custwd)
 
     lr_scheduler = CosineAnnealingLR(optimizer=optimizer, T_max=args.epochs * IMAGENET_TRAINSET_SIZE // args.batch_size // ngpus_per_node)
 
@@ -256,14 +258,17 @@ def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        if args.gpu is not None:
-            images = images.cuda(args.gpu, non_blocking=True)
-        if torch.cuda.is_available():
-            target = target.cuda(args.gpu, non_blocking=True)
+        images = images.cuda(args.gpu, non_blocking=True)
+        target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
         output = model(images)
         loss = criterion(output, target)
+
+        if args.custwd:
+            for module in model.modules():
+                if hasattr(module, 'get_custom_L2'):
+                    loss += args.weight_decay * 0.5 * module.get_custom_L2()
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
