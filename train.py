@@ -15,7 +15,7 @@ import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from utils import AverageMeter, accuracy, ProgressMeter, get_default_ImageNet_val_loader, get_default_ImageNet_train_sampler_loader
+from utils import AverageMeter, accuracy, ProgressMeter, get_default_ImageNet_val_loader, get_default_ImageNet_train_sampler_loader, log_msg
 
 from repvgg import get_RepVGG_func_by_name
 
@@ -37,6 +37,8 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
+parser.add_argument('--val-batch-size', default=100, type=int, metavar='V',
+                    help='validation batch size')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
@@ -69,6 +71,8 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'multi node data parallel training')
 parser.add_argument('--custwd', dest='custwd', action='store_true',
                     help='Use custom weight decay. It improves the accuracy and makes quantization easier.')
+parser.add_argument('--tag', default='testtest', type=str,
+                    help='the tag for identifying the log and model files. Just a string.')
 
 best_acc1 = 0
 
@@ -127,6 +131,7 @@ def main():
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
+    log_file = 'train_{}_exp.txt'.format(args.tag)
 
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
@@ -144,6 +149,16 @@ def main_worker(gpu, ngpus_per_node, args):
     repvgg_build_func = get_RepVGG_func_by_name(args.arch)
 
     model = repvgg_build_func(deploy=False)
+
+    is_main = not args.multiprocessing_distributed or (
+                args.multiprocessing_distributed and args.rank % ngpus_per_node == 0)
+
+    if is_main:
+        for n, p in model.named_parameters():
+            print(n, p.size())
+        for n, p in model.named_buffers():
+            print(n, p.size())
+        log_msg('epochs {}, lr {}, weight_decay {}'.format(args.epochs, args.lr, args.weight_decay), log_file)
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -218,17 +233,18 @@ def main_worker(gpu, ngpus_per_node, args):
         # adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler)
+        train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler, is_main=is_main)
 
-        # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        if is_main:
+            # evaluate on validation set
+            acc1 = validate(val_loader, model, criterion, args)
+            msg = '{}, epoch {}, QAT acc {}'.format(args.arch, epoch, acc1)
+            log_msg(msg, log_file)
 
-        # remember best acc@1 and save checkpoint
-        is_best = acc1 > best_acc1
-        best_acc1 = max(acc1, best_acc1)
+            # remember best acc@1 and save checkpoint
+            is_best = acc1 > best_acc1
+            best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
@@ -236,10 +252,11 @@ def main_worker(gpu, ngpus_per_node, args):
                 'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
                 'scheduler': lr_scheduler.state_dict(),
-            }, is_best)
+            }, is_best, filename = '{}_{}.pth.tar'.format(args.arch, args.tag),
+                best_filename='{}_{}_best.pth.tar'.format(args.arch, args.tag))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
+def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler, is_main):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
@@ -287,9 +304,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args, lr_scheduler):
 
         lr_scheduler.step()
 
-        if i % args.print_freq == 0:
+        if is_main and i % args.print_freq == 0:
             progress.display(i)
-        if i % 1000 == 0:
+        if is_main and i % 1000 == 0:
             print('cur lr: ', lr_scheduler.get_lr()[0])
 
 
@@ -339,10 +356,10 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename, best_filename):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filename, best_filename)
 
 
 

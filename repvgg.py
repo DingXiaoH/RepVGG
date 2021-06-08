@@ -63,7 +63,7 @@ class RepVGGBlock(nn.Module):
     #           loss += weight_decay_coefficient * 0.5 * blk.get_cust_L2()
     #       optimizer.zero_grad()
     #       loss.backward()
-    def get_cust_L2(self):
+    def get_custom_L2(self):
         K3 = self.rbr_dense.conv.weight
         K1 = self.rbr_1x1.conv.weight
         t3 = (self.rbr_dense.bn.weight / ((self.rbr_dense.bn.running_var + self.rbr_dense.bn.eps).sqrt())).reshape(-1, 1, 1, 1).detach()
