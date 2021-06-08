@@ -10,7 +10,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name
-from utils import load_checkpoint, get_default_val_trans, get_ImageNet_val_dataset
+from utils import load_checkpoint, get_default_ImageNet_val_loader
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Test')
 parser.add_argument('data', metavar='DIR', help='path to dataset')
@@ -52,14 +52,7 @@ def test():
 
     cudnn.benchmark = True
 
-    # Data loading code
-    trans = get_default_val_trans(args)
-    dataset = get_ImageNet_val_dataset(args, trans)
-
-    val_loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+    val_loader = get_default_ImageNet_val_loader(args)
 
     validate(val_loader, model, criterion, use_gpu)
 

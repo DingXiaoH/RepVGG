@@ -234,27 +234,8 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
-    # Data loading code
-    train_trans = get_default_train_trans(args)
-    train_dataset = get_ImageNet_train_dataset(args, train_trans)
-
-    if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    else:
-        train_sampler = None
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
-
-
-    val_trans = get_default_val_trans(args)
-    val_dataset = get_ImageNet_val_dataset(args, val_trans)
-
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=args.val_batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+    train_sampler, train_loader = get_default_ImageNet_train_sampler_loader(args)
+    val_loader = get_default_ImageNet_val_loader(args)
 
     if args.evaluate:
         validate(val_loader, qat_model, criterion, args)
