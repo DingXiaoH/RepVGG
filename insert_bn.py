@@ -8,11 +8,9 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
 from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name, RepVGGBlock
-import PIL
-from utils import load_checkpoint, get_ImageNet_train_dataset
+from utils import load_checkpoint, get_ImageNet_train_dataset, get_default_train_trans
 
 #   Get the mean and std on every conv3x3 (before the bias-adding) on the train set. Then use such data to initialize BN layers and insert them after conv3x3.
 #   May, 07, 2021
@@ -115,7 +113,7 @@ def switch_bnstat_to_convbn(model):
             block.rbr_reparam = convbn
 
 
-#   Insert a BN after conv3x3 (rbr_reparam). With no reasonable initialization of BN, the model will break down if you insist to train it.
+#   Insert a BN after conv3x3 (rbr_reparam). With no reasonable initialization of BN, the model may break down.
 #   So you have to load the weights obtained through the BN statistics (please see the function "insert_bn" in this file).
 def directly_insert_bn_without_init(model):
     for n, block in model.named_modules():
@@ -129,9 +127,11 @@ def directly_insert_bn_without_init(model):
                                               block.rbr_reparam.dilation,
                                               block.rbr_reparam.groups, bias=False))  # Note bias=False
             convbn.add_module('bn', nn.BatchNorm2d(block.rbr_reparam.out_channels))
+            #   ====================
             convbn.add_module('relu', nn.ReLU())
-            print('conv bn relu')
-            block.nonlinearity = nn.Identity()  #TODO note this
+            # TODO we moved ReLU from "block.nonlinearity" into "rbr_reparam" (nn.Sequential). This makes it more convenient to fuse operators (see RepVGGWholeQuant.fuse_model) using off-the-shelf APIs.
+            block.nonlinearity = nn.Identity()
+            #==========================
             block.__delattr__('rbr_reparam')
             block.rbr_reparam = convbn
 
@@ -149,25 +149,7 @@ def insert_bn():
 
     cudnn.benchmark = True
 
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-    if args.resolution == 224:
-        # trans = transforms.Compose([
-        #     transforms.Resize(256),
-        #     transforms.CenterCrop(224),
-        #     transforms.ToTensor(),
-        #     normalize])
-        trans = transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize])
-    else:
-        trans = transforms.Compose([
-            transforms.Resize(args.resolution, interpolation=PIL.Image.BILINEAR),
-            transforms.CenterCrop(args.resolution),
-            transforms.ToTensor(),
-            normalize])
+    trans = get_default_train_trans(args)
     print('data aug: ', trans)
 
     train_dataset = get_ImageNet_train_dataset(args, trans)

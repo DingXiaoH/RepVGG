@@ -2,6 +2,8 @@ import torch
 import math
 import torchvision.datasets as datasets
 import os
+import torchvision.transforms as transforms
+import PIL
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -152,3 +154,36 @@ def get_ImageNet_val_dataset(args, trans):
         traindir = os.path.join(args.data, 'val')
         val_dataset = datasets.ImageFolder(traindir, trans)
     return val_dataset
+
+
+def get_default_train_trans(args):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    if (not hasattr(args, 'resolution')) or args.resolution == 224:
+        trans = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize])
+    else:
+        raise ValueError('Not yet implemented.')
+    return trans
+
+
+def get_default_val_trans(args):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    if (not hasattr(args, 'resolution')) or args.resolution == 224:
+        trans = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize])
+    else:
+        trans = transforms.Compose([
+            transforms.Resize(args.resolution, interpolation=PIL.Image.BILINEAR),
+            transforms.CenterCrop(args.resolution),
+            transforms.ToTensor(),
+            normalize,
+        ])
+    return trans

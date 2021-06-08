@@ -8,12 +8,9 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
 from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name
-import PIL
-from utils import load_checkpoint
+from utils import load_checkpoint, get_default_val_trans, get_ImageNet_val_dataset
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Test')
 parser.add_argument('data', metavar='DIR', help='path to dataset')
@@ -56,28 +53,11 @@ def test():
     cudnn.benchmark = True
 
     # Data loading code
-    valdir = os.path.join(args.data, 'val')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    if args.resolution == 224:
-        trans = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])
-    else:
-        trans = transforms.Compose([
-            transforms.Resize(args.resolution, interpolation=PIL.Image.BILINEAR),
-            transforms.CenterCrop(args.resolution),
-            transforms.ToTensor(),
-            normalize,
-        ]
-        )
+    trans = get_default_val_trans(args)
+    dataset = get_ImageNet_val_dataset(args, trans)
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, trans),
+        dataset,
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 

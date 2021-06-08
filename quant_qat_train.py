@@ -1,11 +1,8 @@
 import argparse
-import os
 import random
 import shutil
 import time
 import warnings
-
-import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
@@ -14,10 +11,7 @@ import torch.optim
 import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.transforms as transforms
-from utils import accuracy, AverageMeter, ProgressMeter, log_msg, WarmupCosineAnnealingLR, load_checkpoint, get_ImageNet_train_dataset, get_ImageNet_val_dataset
-import math
-import copy
+from utils import *
 
 best_acc1 = 0
 
@@ -76,6 +70,10 @@ parser.add_argument('--tag', default='whole', type=str,
                     help='weights of the base model. Ignore it if this is not the first quant iteration')
 parser.add_argument('--fpfinetune', dest='fpfinetune', action='store_true',
                     help='full precision finetune')
+parser.add_argument('--fixobserver', dest='fixobserver', action='store_true',
+                    help='fix observer?')
+parser.add_argument('--fixbn', dest='fixbn', action='store_true',
+                    help='fix bn?')
 
 
 
@@ -237,17 +235,7 @@ def main_worker(gpu, ngpus_per_node, args):
     cudnn.benchmark = True
 
     # Data loading code
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
-
-    train_trans = transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ])
-
-    # train_dataset = datasets.ImageFolder(traindir, transform=train_trans)
+    train_trans = get_default_train_trans(args)
     train_dataset = get_ImageNet_train_dataset(args, train_trans)
 
     if args.distributed:
@@ -260,15 +248,8 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
 
-    val_trans = transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])
-
-    # val_dataset = datasets.ImageFolder(valdir, val_trans)
-    val_dataset =get_ImageNet_val_dataset(args, val_trans)
+    val_trans = get_default_val_trans(args)
+    val_dataset = get_ImageNet_val_dataset(args, val_trans)
 
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -279,31 +260,22 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, qat_model, criterion, args)
         return
 
-    # validate(val_loader, qat_model, criterion, args)    #TODO note this
-
-    # if not args.multiprocessing_distributed or (args.multiprocessing_distributed and args.rank % ngpus_per_node == 0):
-    #     acc1 = validate(val_loader, qat_model, criterion, args)
-    #     msg = '{}, quant, init, QAT acc {}'.format(args.arch, acc1)
-    #     log_msg(msg, 'quant_exp.txt')
-
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        # adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
         train(train_loader, qat_model, criterion, optimizer, epoch, args, lr_scheduler, is_main=is_main)
 
-        # if epoch > (3 * args.epochs // 8):
+        if args.fixobserver and epoch > (3 * args.epochs // 8):
             # Freeze quantizer parameters
-            # qat_model.apply(torch.quantization.disable_observer)  #TODO canceld at 2021/05/30
+            qat_model.apply(torch.quantization.disable_observer)  #TODO testing. May not be useful
+            log_msg('fix observer after epoch {}'.format(epoch), log_file)
 
-        # if epoch > (2 * args.epochs // 8):    #TODO commented 2021/05/12
+        if args.fixbn and epoch > (2 * args.epochs // 8):    #TODO testing. May not be useful
         #     Freeze batch norm mean and variance estimates
-        #     qat_model.module.freeze_quant_bn()
-
-
-
+            qat_model.apply(torch.nn.intrinsic.qat.freeze_bn_stats)
+            log_msg('fix bn after epoch {}'.format(epoch), log_file)
 
         # evaluate on validation set
         if is_main:
