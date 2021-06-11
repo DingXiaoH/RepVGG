@@ -76,7 +76,6 @@ parser.add_argument('--tag', default='testtest', type=str,
 
 best_acc1 = 0
 
-
 def sgd_optimizer(model, lr, momentum, weight_decay, use_custwd):
     params = []
     for key, value in model.named_parameters():
@@ -131,7 +130,7 @@ def main():
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
-    log_file = 'train_{}_exp.txt'.format(args.tag)
+    log_file = 'train_{}_{}_exp.txt'.format(args.arch, args.tag)
 
     if args.gpu is not None:
         print("Use GPU: {} for training".format(args.gpu))
