@@ -130,7 +130,7 @@ The best solution for quantization is to constrain the equivalent kernel (get_eq
 
 For the simplicity, we can also use the off-the-shelf quantization toolboxes to quantize RepVGG. We use the simple QAT (quantization-aware training) tool in torch.quantization as an example.
 
-1. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. So . Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers. We initialize BN.gamma/beta accordingly. The saved model has the same outputs as the inference-time model. The base model is trained with the custom weight decay (which will be released very soon) and converted into inference-time structure.
+1. The base model is trained with the custom weight decay (which will be released very soon) and converted into inference-time structure. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers. We initialize BN.gamma/beta accordingly. The saved model has the same outputs as the inference-time model. 
 
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder] --tag hello --custwd
@@ -138,7 +138,7 @@ python convert.py RepVGG-A0_hello_best.pth.tar RepVGG-A0_base.pth -a RepVGG-A0
 python insert_bn.py [imagenet-folder] RepVGG-A0_base.pth RepVGG-A0_withBN.pth -a RepVGG-A0 -b 32 -n 40000
 ```
 
-2. Build the model, prepare it for QAT (torch.quantization.prepare_qat), and conduct QAT. The hyper-parameters may not be optimal and I am working on it.
+2. Build the model, prepare it for QAT (torch.quantization.prepare_qat), and conduct QAT. The hyper-parameters may not be optimal and I am tuning them.
 ```
 python quantization/quant_qat_train.py [imagenet-folder] -j 32 --epochs 20 -b 256 --lr 1e-3 --weight-decay 4e-5 --base-weights RepVGG-A0_withBN.pth --tag quanttest
 ```
