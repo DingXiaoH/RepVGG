@@ -97,8 +97,8 @@ We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used
 The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
 We tested this training script with RepVGG-A0 and RepVGG-B1. The accuracy was 72.44 and 78.38, respectively, which was almost the same as (and even better than) the results we reported in the paper (72.41 and 78.37). You may train and test like this:
 ```
-python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders]
-python test.py [imagenet-folder with train and val folders] train model_best.pth.tar -a RepVGG-A0
+python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders] --tag hello --custwd --wd 4e-5
+python test.py [imagenet-folder with train and val folders] train RepVGG-A0_hello_best.pth.tar -a RepVGG-A0
 ```
 I would really appreciate it if you share with me your re-implementation results with other models. 
             
@@ -119,6 +119,25 @@ deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 # do whatever you want with deploy_model
 ```
 If you use RepVGG as a component of another model, the conversion is as simple as calling **switch_to_deploy** of every RepVGG block. 
+
+# Quantization
+
+The best solution for quantization is to constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py) to be low-bit (e.g., make every param in {-127, -126, .., 126, 127} for int8), instead of constraining the params of every kernel separately for an ordinary model.
+
+For the simplicity, we can also use the off-the-shelf quantization toolboxes to quantize RepVGG. We use the simple QAT (quantization-aware training) tool in torch.quantization as an example.
+
+1. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. So . Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers. We initialize BN.gamma/beta accordingly. The saved model has the same outputs as the inference-time model. The base model is trained with the custom weight decay (which will be released very soon) and converted into inference-time structure.
+
+```
+python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder] --tag hello --custwd
+python convert.py RepVGG-A0_hello_best.pth.tar RepVGG-A0_base.pth -a RepVGG-A0 
+python insert_bn.py [imagenet-folder] RepVGG-A0_base.pth RepVGG-A0_withBN.pth -a RepVGG-A0 -b 32 -n 40000
+```
+
+2. Build the model, prepare it for QAT (torch.quantization.prepare_qat), and conduct QAT. The hyper-parameters may not be optimal and I am working on it.
+```
+python quantization/quant_qat_train.py [imagenet-folder] -j 32 --epochs 20 -b 256 --lr 1e-3 --weight-decay 4e-5 --base-weights RepVGG-A0_withBN.pth --tag quanttest
+```
 
 
 # FAQs
@@ -151,12 +170,6 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 There is an example in **example_pspnet.py**.
 
 Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
-
-**Q**: How to quantize a RepVGG model?
-
-**A1**: Post-training quantization. After training and conversion, you may quantize the converted model with any post-training quantization method. Then you may insert a BN after each conv and finetune to recover the accuracy just like you quantize and finetune the other models. This is the recommended solution.
-
-**A2**: Quantization-aware training. During the quantization-aware training, instead of constraining the params in a single kernel (e.g., making every param in {-127, -126, .., 126, 127} for int8) for ordinary models, you should constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py). 
 
 **Q**: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
 
