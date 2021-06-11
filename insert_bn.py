@@ -12,6 +12,7 @@ from utils import accuracy, ProgressMeter, AverageMeter
 from repvgg import get_RepVGG_func_by_name, RepVGGBlock
 from utils import load_checkpoint, get_ImageNet_train_dataset, get_default_train_trans
 
+#   Insert BN into an inference-time RepVGG (e.g., for quantization-aware training).
 #   Get the mean and std on every conv3x3 (before the bias-adding) on the train set. Then use such data to initialize BN layers and insert them after conv3x3.
 #   May, 07, 2021
 

@@ -4,8 +4,10 @@ from torch.quantization import QuantStub, DeQuantStub
 
 class RepVGGWholeQuant(nn.Module):
 
-    def __init__(self, repvgg_model):
+    def __init__(self, repvgg_model, quantlayers):
         super(RepVGGWholeQuant, self).__init__()
+        assert quantlayers in ['all', 'exclud_first_and_linear', 'exclud_first_and_last']
+        self.quantlayers = quantlayers
         self.quant = QuantStub()
         self.stage0, self.stage1, self.stage2, self.stage3, self.stage4 = repvgg_model.stage0, repvgg_model.stage1, repvgg_model.stage2, repvgg_model.stage3, repvgg_model.stage4
         self.gap, self.linear = repvgg_model.gap, repvgg_model.linear
@@ -13,16 +15,30 @@ class RepVGGWholeQuant(nn.Module):
 
 
     def forward(self, x):
-        x = self.quant(x)
-        out = self.stage0(x)
+        if self.quantlayers == 'all':
+            x = self.quant(x)
+            out = self.stage0(x)
+        else:
+            out = self.stage0(x)
+            out = self.quant(out)
         out = self.stage1(out)
         out = self.stage2(out)
         out = self.stage3(out)
-        out = self.stage4(out)
-        out = self.gap(out)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        out = self.dequant(out)
+        if self.quantlayers == 'all':
+            out = self.stage4(out)
+            out = self.gap(out).view(out.size(0), -1)
+            out = self.linear(out)
+            out = self.dequant(out)
+        elif self.quantlayers == 'exclud_first_and_linear':
+            out = self.stage4(out)
+            out = self.dequant(out)
+            out = self.gap(out).view(out.size(0), -1)
+            out = self.linear(out)
+        else:
+            out = self.dequant(out)
+            out = self.stage4(out)
+            out = self.gap(out).view(out.size(0), -1)
+            out = self.linear(out)
         return out
 
     #   From https://pytorch.org/tutorials/advanced/static_quantization_tutorial.html

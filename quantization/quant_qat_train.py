@@ -74,6 +74,8 @@ parser.add_argument('--fixobserver', dest='fixobserver', action='store_true',
                     help='fix observer?')
 parser.add_argument('--fixbn', dest='fixbn', action='store_true',
                     help='fix bn?')
+parser.add_argument('--quantlayers', default='all', type=str, choices=['all', 'exclud_first_and_linear', 'exclud_first_and_last'],
+                    help='the tag for identifying the log and model files. Just a string.')
 
 
 
@@ -154,14 +156,11 @@ def main_worker(gpu, ngpus_per_node, args):
     directly_insert_bn_without_init(base_model)
     if args.base_weights is not None:
         load_checkpoint(base_model, args.base_weights)
-        # base_weights = {}
-        # for k, v in torch.load(args.base_weights).items():
-        #     base_weights[k.replace('restore', 'rbr_reparam')] = v   #TODO
 
     #   2.
     if not args.fpfinetune:
-        from repvgg_whole_quantized import RepVGGWholeQuant
-        qat_model = RepVGGWholeQuant(repvgg_model=base_model)
+        from quantization.repvgg_quantized import RepVGGWholeQuant
+        qat_model = RepVGGWholeQuant(repvgg_model=base_model, quantlayers=args.quantlayers)
         qat_model.prepare_quant()
     else:
         qat_model = base_model
