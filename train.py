@@ -237,7 +237,7 @@ def main_worker(gpu, ngpus_per_node, args):
         if is_main:
             # evaluate on validation set
             acc1 = validate(val_loader, model, criterion, args)
-            msg = '{}, epoch {}, QAT acc {}'.format(args.arch, epoch, acc1)
+            msg = '{}, epoch {}, acc {}'.format(args.arch, epoch, acc1)
             log_msg(msg, log_file)
 
             # remember best acc@1 and save checkpoint
