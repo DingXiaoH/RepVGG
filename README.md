@@ -130,7 +130,7 @@ The best solution for quantization is to constrain the equivalent kernel (get_eq
 
 For the simplicity, we can also use the off-the-shelf quantization toolboxes to quantize RepVGG. We use the simple QAT (quantization-aware training) tool in torch.quantization as an example.
 
-1. The base model is trained with the custom weight decay (which will be released very soon) and converted into inference-time structure. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers. We initialize BN.gamma/beta accordingly. The saved model has the same outputs as the inference-time model. 
+1. The base model is trained with the custom weight decay (```--custwd```) and converted into inference-time structure. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers, and initialize BN.gamma/beta accordingly so that the saved model has the same outputs as the inference-time model. 
 
 ```
 python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder] --tag hello --custwd
