@@ -173,7 +173,7 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 ```
 There is an example in **example_pspnet.py**.
 
-Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (the converted conv.bias params can be discarded), but the performance may be slightly lower.
+Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (please see step 1 of the quantization part), but the performance may be slightly lower.
 
 **Q**: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
 
