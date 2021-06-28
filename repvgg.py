@@ -181,7 +181,7 @@ class RepVGG(nn.Module):
         out = self.stage3(out)
         out = self.stage4(out)
         out = self.gap(out)
-        out = out.view(out.size(0), -1)
+        out = torch.flatten(out, 1)
         out = self.linear(out)
         return out
 
