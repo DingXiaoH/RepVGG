@@ -2,6 +2,8 @@
 
 # Updates
 
+***July 13, 2021*** Will update this whole repo and release several powerful RepVGG models (around 84% top-1 accuracy) in one or two weeks.
+
 ***June 22, 2021*** A pure-VGG model (without [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html)) seems to outperform some vision transformer models with a better training scheme. Training.
 
 ***June 11, 2021*** An example of using a simple toolbox, torch.quantization, to quantize RepVGG. Please check it below.
