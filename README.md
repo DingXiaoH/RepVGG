@@ -8,9 +8,9 @@
 
 Outperformed several recent visual transformers with a top-1 accuracy of 84.16%! Will be released very soon.
 
-The model is trained with the codebase of Swin Transformer in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of Swin for their clean and well-structured code. 
+The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
-| Model        | Train image size       | Test image size  | ImageNet top-1 acc | Throughput (examples/second, batchsize=128, 2080Ti) |
+| Model        | Train image size       | Test size  | ImageNet top-1 acc | Throughput (examples/second, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
 | RepVGGplus-L2    | 256 	|  	320 |   84.16%   |**290** |
 | Swin Transformer | 320    |   320 |   84.0     |102 |
