@@ -6,7 +6,7 @@
 
 **VGG is SOTA again!**
 
-Outperformed several recent visual transformers with a top-1 accuracy of 84.16%! Will be released very soon.
+Outperformed several recent visual transformers with a top-1 accuracy of 84.16% and much higher throughput. Will be released very soon.
 
 The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
