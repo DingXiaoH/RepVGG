@@ -13,7 +13,7 @@ The model is trained with the [codebase of Swin Transformer](https://github.com/
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
 | RepVGGplus-L2    | 256 	|  	320 |   84.16%   |**290** |
-| Swin Transformer | 320    |   320 |   84.0     |102 |
+| Swin Transformer | 320    |   320 |   84.0%     |102 |
 
 ***June 22, 2021*** A pure-VGG model (without [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html)) seems to outperform some vision transformer models with a better training scheme. Training.
 
