@@ -25,8 +25,12 @@ python test.py [imagenet-folder] deploy RepVGGplus-L2pse-deploy.pth -a RepVGGplu
 
 It has 126M inference-time parameters. The training-time weights file is released at Google Drive and Baidu Cloud. Please check the links below. 
 
-To train or finetune it, do something in your training code like this:
+To train or finetune it, slightly change your training code like this:
 ```
+        #   Build model and data loader as usual
+        for samples, targets in enumerate(train_data_loader):
+            #   ......
+            outputs = model(samples)                        #   Your original code
             if type(outputs) is dict:                       
                 #   A training-time RepVGGplus outputs a dict. The entrys are:
                     #   'main':     the output of the final layer
@@ -42,6 +46,8 @@ To train or finetune it, do something in your training code like this:
                         loss += criterion(pred, targets)
             else:
                 loss = criterion(outputs, targets)          #   Your original code
+            #   Backward as usual
+            #   ......
 ```
 
 To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer. I will release an example in this repo.
