@@ -15,13 +15,15 @@ The model is trained with the [codebase of Swin Transformer](https://github.com/
 | RepVGGplus-L2pse    | 256 	|  	320 |   84.16%   |**290** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
 
-Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Testing it is nothing different from testing a RepVGG:
+Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Please check ```repvggplus.py```.
+
+Testing it is nothing different from testing a RepVGG:
 ```
 python convert.py RepVGGplus-L2pse-train.pth RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse
-python3 test.py [imagenet-folder] deploy RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse -r 320
+python test.py [imagenet-folder] deploy RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse -r 320
 ```
 
-The training-time weights file is released at Google Drive and Baidu Cloud. Please check the links below. It has 126M inference-time parameters.
+It has 126M inference-time parameters. The training-time weights file is released at Google Drive and Baidu Cloud. Please check the links below. 
 
 To train or finetune it, do something in your training code like this:
 ```
@@ -35,15 +37,14 @@ To train or finetune it, do something in your training code like this:
                     if name == 'L2':
                         pass
                     elif 'aux' in name:
-                        loss += 0.1 * criterion(pred, targets)
+                        loss += 0.1 * criterion(pred, targets)          #  Assume "criterion" is cross-entropy for classification
                     else:
                         loss += criterion(pred, targets)
             else:
                 loss = criterion(outputs, targets)          #   Your original code
 ```
 
-To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer. I will provide an example in this repo.
-
+To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer. I will release an example in this repo.
 
 ***June 22, 2021*** A pure-VGG model (without [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html)) seems to outperform some vision transformer models with a better training scheme. Training.
 
