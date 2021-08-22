@@ -135,6 +135,9 @@ class RepVGGBlock(nn.Module):
         self.__delattr__('rbr_1x1')
         if hasattr(self, 'rbr_identity'):
             self.__delattr__('rbr_identity')
+        if hasattr(self, 'id_tensor'):
+            self.__delattr__('id_tensor')
+        self.deploy = True
 
 
 

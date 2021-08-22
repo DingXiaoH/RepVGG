@@ -16,9 +16,12 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='RepVGG-A0')
 def convert():
     args = parser.parse_args()
 
-    repvgg_build_func = get_RepVGG_func_by_name(args.arch)
-
-    train_model = repvgg_build_func(deploy=False)
+    if 'plus' in args.arch:
+        from repvggplus import get_RepVGGplus_func_by_name
+        train_model = get_RepVGGplus_func_by_name(args.arch)(deploy=False, use_checkpoint=False)
+    else:
+        repvgg_build_func = get_RepVGG_func_by_name(args.arch)
+        train_model = repvgg_build_func(deploy=False)
 
     if os.path.isfile(args.load):
         print("=> loading checkpoint '{}'".format(args.load))
@@ -33,7 +36,11 @@ def convert():
     else:
         print("=> no checkpoint found at '{}'".format(args.load))
 
-    repvgg_model_convert(train_model, save_path=args.save)
+    if 'plus' in args.arch:
+        train_model.switch_repvggplus_to_deploy()
+        torch.save(train_model.state_dict(), args.save)
+    else:
+        repvgg_model_convert(train_model, save_path=args.save)
 
 
 if __name__ == '__main__':

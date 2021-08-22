@@ -29,9 +29,12 @@ parser.add_argument('-r', '--resolution', default=224, type=int,
 def test():
     args = parser.parse_args()
 
-    repvgg_build_func = get_RepVGG_func_by_name(args.arch)
-
-    model = repvgg_build_func(deploy=args.mode=='deploy')
+    if 'plus' in args.arch:
+        from repvggplus import get_RepVGGplus_func_by_name
+        model = get_RepVGGplus_func_by_name(args.arch)(deploy=args.mode=='deploy', use_checkpoint=False)
+    else:
+        repvgg_build_func = get_RepVGG_func_by_name(args.arch)
+        model = repvgg_build_func(deploy=args.mode == 'deploy')
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -79,6 +82,8 @@ def validate(val_loader, model, criterion, use_gpu):
 
             # compute output
             output = model(images)
+            if isinstance(output, dict):        #   If the model being tested is a training-time RepVGGplus, which has auxiliary classifiers
+                output = output['main']
             loss = criterion(output, target)
 
             # measure accuracy and record loss

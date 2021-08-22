@@ -64,6 +64,8 @@ def accuracy(output, target, topk=(1,)):
 
 def load_checkpoint(model, ckpt_path):
     checkpoint = torch.load(ckpt_path)
+    if 'model' in checkpoint:
+        checkpoint = checkpoint['model']
     if 'state_dict' in checkpoint:
         checkpoint = checkpoint['state_dict']
     ckpt = {}
@@ -205,8 +207,12 @@ def get_default_ImageNet_train_sampler_loader(args):
 def get_default_ImageNet_val_loader(args):
     val_trans = get_default_val_trans(args)
     val_dataset = get_ImageNet_val_dataset(args, val_trans)
+    if hasattr(args, 'val_batch_size'):
+        bs = args.val_batch_size
+    else:
+        bs = args.batch_size
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
-        batch_size=args.val_batch_size, shuffle=False,
+        batch_size=bs, shuffle=False,
         num_workers=args.workers, pin_memory=True)
     return val_loader
