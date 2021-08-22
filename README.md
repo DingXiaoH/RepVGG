@@ -4,16 +4,46 @@
 
 ***Aug 21, 2021*** 
 
-**VGG is SOTA again!**
+**VGG is SOTA again! Weights released!**
 
-Outperformed several recent visual transformers with a top-1 accuracy of 84.16% and much higher throughput. Will be released very soon.
+Outperformed several recent visual transformers with a top-1 accuracy of 84.16% and much higher throughput. 
 
 The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
-| RepVGGplus-L2    | 256 	|  	320 |   84.16%   |**290** |
+| RepVGGplus-L2pse    | 256 	|  	320 |   84.16%   |**290** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
+
+Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Testing it is nothing different from testing a RepVGG:
+```
+python convert.py RepVGGplus-L2pse-train.pth RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse
+python3 test.py [imagenet-folder] deploy RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse -r 320
+```
+
+The training-time weights file is released at Google Drive and Baidu Cloud. Please check the links below. It has 126M inference-time parameters.
+
+To train or finetune it, do something in your training code like this:
+```
+            if type(outputs) is dict:                       
+                #   A training-time RepVGGplus outputs a dict. The entrys are:
+                    #   'main':     the output of the final layer
+                    #   '*aux*':    the output of auxiliary classifiers
+                    #   'L2':       the custom L2 regularization term
+                loss = WEIGHT_DECAY * 0.5 * outputs['L2']
+                for name, pred in outputs.items():
+                    if name == 'L2':
+                        pass
+                    elif 'aux' in name:
+                        loss += 0.1 * criterion(pred, targets)
+                    else:
+                        loss += criterion(pred, targets)
+            else:
+                loss = criterion(outputs, targets)          #   Your original code
+```
+
+To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer. I will provide an example in this repo.
+
 
 ***June 22, 2021*** A pure-VGG model (without [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html)) seems to outperform some vision transformer models with a better training scheme. Training.
 
