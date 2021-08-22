@@ -6,13 +6,13 @@
 
 **VGG is SOTA again! Weights released!**
 
-Outperformed several recent visual transformers with a top-1 accuracy of 84.16% and much higher throughput. 
+Outperformed several recent visual transformers with a top-1 accuracy of **84.16%** and much higher throughput. 
 
 The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
-| RepVGGplus-L2pse    | 256 	|  	320 |   84.16%   |**290** |
+| RepVGGplus-L2pse    | 256 	|  	320 |   **84.16%**   |**290** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
 
 Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Please check ```repvggplus.py```.
@@ -32,7 +32,7 @@ To train or finetune it, slightly change your training code like this:
             #   ......
             outputs = model(samples)                        #   Your original code
             if type(outputs) is dict:                       
-                #   A training-time RepVGGplus outputs a dict. The entrys are:
+                #   A training-time RepVGGplus outputs a dict. The items are:
                     #   'main':     the output of the final layer
                     #   '*aux*':    the output of auxiliary classifiers
                     #   'L2':       the custom L2 regularization term
