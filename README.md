@@ -12,7 +12,7 @@ The model is trained with the [codebase of Swin Transformer](https://github.com/
 
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
-| RepVGGplus-L2pse    | 256 	|  	320 |   **84.16%**   |**290** |
+| RepVGGplus-L2pse    | 256 	|  	320 |   **84.16%**   |**147** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
 
 Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Please check ```repvggplus.py```.
