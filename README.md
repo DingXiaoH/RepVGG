@@ -257,7 +257,7 @@ The **Structural Re-parameterization Universe**:
 
 1. RepLKNet (CVPR 2022) **Powerful efficient architecture with very large kernels (31x31) and guidelines for using large kernels in model CNNs**\
 [Scaling Up Your Kernels to 31x31: Revisiting Large Kernel Design in CNNs](https://arxiv.org/abs/2203.06717)\
-[code](https://github.com/DingXiaoH/RepLKNet).
+[code](https://github.com/DingXiaoH/RepLKNet-pytorch).
 
 2. RepMLP (CVPR 2022) **MLP-style building block and Architecture**\
 [RepMLPNet: Hierarchical Vision MLP with Re-parameterized Locality](https://arxiv.org/abs/2112.11081)\
