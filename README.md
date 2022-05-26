@@ -2,6 +2,8 @@
 
 # Updates
 
+MegEngine version has been included in the MegEngine Basecls model zoo: https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg
+
 ***Aug 21, 2021*** 
 
 **VGG is SOTA again! Weights released!**
