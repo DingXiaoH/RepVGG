@@ -88,6 +88,8 @@ Included in a famous model zoo (over 7k stars) https://github.com/rwightman/pyto
 
 Objax implementation and models by @benjaminjellis. Great work! https://github.com/benjaminjellis/Objax-RepVGG.
 
+Easy to understand implementation for understanding  https://github.com/imad08/REPVGG-
+
 Citation:
 
     @inproceedings{ding2021repvgg,
