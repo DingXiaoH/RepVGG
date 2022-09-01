@@ -1,16 +1,20 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-# Updates
+## Updates (Sep. 1st, 2022)
+
+RepVGG and the methodology of re-parameterization have been used in YOLOv6 and YOLOv7. 
+
+I will completely re-organize this repository and release more models with higher accuracy in this month.
 
 MegEngine version has been included in the MegEngine Basecls model zoo: https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg
+
+## RepVGGplus
 
 ***Aug 21, 2021*** 
 
 **VGG is SOTA again! Weights released!**
 
-Outperformed several recent visual transformers with a top-1 accuracy of **84.16%** and much higher throughput. 
-
-The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
+Outperformed several recent visual transformers with a top-1 accuracy of **84.16%** and much higher throughput. The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
@@ -74,7 +78,7 @@ To use it for downstream tasks like semantic segmentation, just discard the aux 
 
 ***Jan 13 - Feb 5, 2021*** You can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization. This training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper.
 
-# Introduction
+## Introduction
 
 This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
 
@@ -98,7 +102,7 @@ Citation:
     year={2021}
     }
 
-# Abstract
+## Abstract
 
 We present a simple but powerful architecture of convolutional neural network, which has a VGG-like inference-time body composed of nothing but a stack of 3x3 convolution and ReLU, while the training-time model has a multi-branch topology. Such decoupling of the training-time and inference-time architecture is realized by a structural re-parameterization technique so that the model is named RepVGG. On ImageNet, RepVGG reaches over 80\% top-1 accuracy, which is the first time for a plain model, to the best of our knowledge. On NVIDIA 1080Ti GPU, RepVGG models run 83% faster than ResNet-50 or 101% faster than ResNet-101 with higher accuracy and show favorable accuracy-speed trade-off compared to the state-of-the-art models like EfficientNet and RegNet.
 
@@ -106,7 +110,7 @@ We present a simple but powerful architecture of convolutional neural network, w
 ![image](https://github.com/DingXiaoH/RepVGG/blob/main/speed_acc.PNG)
 ![image](https://github.com/DingXiaoH/RepVGG/blob/main/table.PNG)
 
-# Use our pretrained models
+## Use our pretrained models
 
 You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You may test the accuracy by running
 ```
@@ -126,7 +130,7 @@ python test.py [imagenet-folder with train and val folders] train RepVGG-D2se-20
 ```
 
 
-# Convert the training-time models into inference-time
+## Convert the training-time models into inference-time
 
 You may convert a trained model into the inference-time structure with
 ```
@@ -143,7 +147,7 @@ python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-dep
 Note that the argument "deploy" builds an inference-time model.
 
 
-# ImageNet training
+## ImageNet training
 
 We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.bias, rbr_dense.bn.weight and rbr_1x1.bn.weight) (weight decay on rbr_identity.weight makes little difference, and it is better to use it in most of the cases), and the same simple data preprocssing as the PyTorch official example:
 ```
@@ -179,7 +183,7 @@ deploy_model.load_state_dict(torch.load('RepVGG-A0-deploy.pth'))
 ```
 If you use RepVGG as a component of another model, the conversion is as simple as calling **switch_to_deploy** of every RepVGG block. 
 
-# Quantization
+## Quantization
 
 The best solution for quantization is to constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py) to be low-bit (e.g., make every param in {-127, -126, .., 126, 127} for int8), instead of constraining the params of every kernel separately for an ordinary model.
 
@@ -199,7 +203,7 @@ python quantization/quant_qat_train.py [imagenet-folder] -j 32 --epochs 20 -b 25
 ```
 
 
-# FAQs
+## FAQs
 
 **Q**: Is the inference-time model's output the _same_ as the training-time model?
 
