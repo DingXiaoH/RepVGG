@@ -3,12 +3,12 @@
 # Github source: https://github.com/DingXiaoH/RepVGG
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
-
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
 from se_block import SEBlock
 import torch
 import numpy as np
+
 
 def conv_bn_relu(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -58,9 +58,10 @@ class RepVGGplusBlock(nn.Module):
             padding_11 = padding - kernel_size // 2
             self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, padding=padding_11, groups=groups)
 
-    def forward(self, x):
+    def forward(self, x, L2):
+
         if self.deploy:
-            return self.post_se(self.nonlinearity(self.rbr_reparam(x)))
+            return self.post_se(self.nonlinearity(self.rbr_reparam(x))), None
 
         if self.rbr_identity is None:
             id_out = 0
@@ -68,7 +69,18 @@ class RepVGGplusBlock(nn.Module):
             id_out = self.rbr_identity(x)
         out = self.rbr_dense(x) + self.rbr_1x1(x) + id_out
         out = self.post_se(self.nonlinearity(out))
-        return out
+
+        #   Custom L2
+        t3 = (self.rbr_dense.bn.weight / ((self.rbr_dense.bn.running_var + self.rbr_dense.bn.eps).sqrt())).reshape(-1, 1, 1, 1).detach()
+        t1 = (self.rbr_1x1.bn.weight / ((self.rbr_1x1.bn.running_var + self.rbr_1x1.bn.eps).sqrt())).reshape(-1, 1, 1, 1).detach()
+        K3 = self.rbr_dense.conv.weight
+        K1 = self.rbr_1x1.conv.weight
+
+        l2_loss_circle = (K3 ** 2).sum() - (K3[:, :, 1:2, 1:2] ** 2).sum()
+        eq_kernel = K3[:,:,1:2,1:2] * t3 + K1 * t1
+        l2_loss_eq_kernel = (eq_kernel ** 2 / (t3 ** 2 + t1 ** 2)).sum()
+
+        return out, L2 + l2_loss_circle + l2_loss_eq_kernel
 
 
     #   This func derives the equivalent kernel and bias in a DIFFERENTIABLE way.
@@ -144,55 +156,41 @@ class RepVGGplusStage(nn.Module):
         self.blocks = nn.ModuleList(blocks)
         self.use_checkpoint = use_checkpoint
 
-    def forward(self, x):
+    def forward(self, x, L2):
         for block in self.blocks:
             if self.use_checkpoint:
-                x = checkpoint.checkpoint(block, x)
+                x, L2 = checkpoint.checkpoint(block, x, L2)
             else:
-                x = block(x)
-        return x
+                x, L2 = block(x, L2)
+        return x, L2
 
 
 class RepVGGplus(nn.Module):
-    """RepVGGplus
-        An official improved version of RepVGG (RepVGG: Making VGG-style ConvNets Great Again) <https://openaccess.thecvf.com/content/CVPR2021/papers/Ding_RepVGG_Making_VGG-Style_ConvNets_Great_Again_CVPR_2021_paper.pdf>`_.
 
-        Args:
-            num_blocks (tuple[int]): Depths of each stage.
-            num_classes (tuple[int]): Num of classes.
-            width_multiplier (tuple[float]): The width of the four stages
-                will be (64 * width_multiplier[0], 128 * width_multiplier[1], 256 * width_multiplier[2], 512 * width_multiplier[3]).
-            deploy (bool, optional): If True, the model will have the inference-time structure.
-                Default: False.
-            use_post_se (bool, optional): If True, the model will have Squeeze-and-Excitation blocks following the conv-ReLU units.
-                Default: False.
-            use_checkpoint (bool, optional): If True, the model will use torch.utils.checkpoint to save the GPU memory during training with acceptable slowdown.
-                Do not use it if you have sufficient GPU memory.
-                Default: False.
-        """
-    def __init__(self,
-                 num_blocks,
-                 num_classes,
-                 width_multiplier,
+    def __init__(self, num_blocks, num_classes,
+                 width_multiplier, override_groups_map=None,
                  deploy=False,
                  use_post_se=False,
                  use_checkpoint=False):
         super().__init__()
 
         self.deploy = deploy
+        self.override_groups_map = override_groups_map or dict()
+        self.use_post_se = use_post_se
+        self.use_checkpoint = use_checkpoint
         self.num_classes = num_classes
+        self.nonlinear = 'relu'
 
-        in_channels = min(64, int(64 * width_multiplier[0]))
-        stage_channels = [int(64 * width_multiplier[0]), int(128 * width_multiplier[1]), int(256 * width_multiplier[2]), int(512 * width_multiplier[3])]
-        self.stage0 = RepVGGplusBlock(in_channels=3, out_channels=in_channels, kernel_size=3, stride=2, padding=1, deploy=self.deploy, use_post_se=use_post_se)
-        self.stage1 = RepVGGplusStage(in_channels, stage_channels[0], num_blocks[0], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
-        self.stage2 = RepVGGplusStage(stage_channels[0], stage_channels[1], num_blocks[1], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
+        self.in_planes = min(64, int(64 * width_multiplier[0]))
+        self.stage0 = RepVGGplusBlock(in_channels=3, out_channels=self.in_planes, kernel_size=3, stride=2, padding=1, deploy=self.deploy, use_post_se=use_post_se)
+        self.cur_layer_idx = 1
+        self.stage1 = RepVGGplusStage(self.in_planes, int(64 * width_multiplier[0]), num_blocks[0], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
+        self.stage2 = RepVGGplusStage(int(64 * width_multiplier[0]), int(128 * width_multiplier[1]), num_blocks[1], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
         #   split stage3 so that we can insert an auxiliary classifier
-        self.stage3_first = RepVGGplusStage(stage_channels[1], stage_channels[2], num_blocks[2] // 2, stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
-        self.stage3_second = RepVGGplusStage(stage_channels[2], stage_channels[2], num_blocks[2] - num_blocks[2] // 2, stride=1, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
-        self.stage4 = RepVGGplusStage(stage_channels[2], stage_channels[3], num_blocks[3], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
+        self.stage3_first = RepVGGplusStage(int(128 * width_multiplier[1]), int(256 * width_multiplier[2]), num_blocks[2] // 2, stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
+        self.stage3_second = RepVGGplusStage(int(256 * width_multiplier[2]), int(256 * width_multiplier[2]), num_blocks[2] // 2, stride=1, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
+        self.stage4 = RepVGGplusStage(int(256 * width_multiplier[2]), int(512 * width_multiplier[3]), num_blocks[3], stride=2, use_checkpoint=use_checkpoint, use_post_se=use_post_se, deploy=deploy)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
-        self.flatten = nn.Flatten()
         self.linear = nn.Linear(int(512 * width_multiplier[3]), num_classes)
         #   aux classifiers
         if not self.deploy:
@@ -207,29 +205,45 @@ class RepVGGplus(nn.Module):
         return nn.Sequential(downsample, nn.AdaptiveAvgPool2d(1), nn.Flatten(), fc)
 
     def forward(self, x):
-        out = self.stage0(x)
-        out = self.stage1(out)
-        stage1_aux = self.stage1_aux(out)
-        out = self.stage2(out)
-        stage2_aux = self.stage2_aux(out)
-        out = self.stage3_first(out)
-        stage3_first_aux = self.stage3_first_aux(out)
-        out = self.stage3_second(out)
-        out = self.stage4(out)
-        y = self.gap(out)
-        y = self.flatten(y)
-        y = self.linear(y)
-        return {
-            'main': y,
-            'stage1_aux': stage1_aux,
-            'stage2_aux': stage2_aux,
-            'stage3_first_aux': stage3_first_aux,
-        }
+        if self.deploy:
+            out, _ = self.stage0(x, L2=None)
+            out, _ = self.stage1(out, L2=None)
+            out, _ = self.stage2(out, L2=None)
+            out, _ = self.stage3_first(out, L2=None)
+            out, _ = self.stage3_second(out, L2=None)
+            out, _ = self.stage4(out, L2=None)
+            y = self.gap(out)
+            y = y.view(y.size(0), -1)
+            y = self.linear(y)
+            return y
+
+        else:
+            out, L2 = self.stage0(x, L2=0.0)
+            out, L2 = self.stage1(out, L2=L2)
+            stage1_aux = self.stage1_aux(out)
+            out, L2 = self.stage2(out, L2=L2)
+            stage2_aux = self.stage2_aux(out)
+            out, L2 = self.stage3_first(out, L2=L2)
+            stage3_first_aux = self.stage3_first_aux(out)
+            out, L2 = self.stage3_second(out, L2=L2)
+            out, L2 = self.stage4(out, L2=L2)
+            y = self.gap(out)
+            y = y.view(y.size(0), -1)
+            y = self.linear(y)
+            return {
+                'main': y,
+                'stage1_aux': stage1_aux,
+                'stage2_aux': stage2_aux,
+                'stage3_first_aux': stage3_first_aux,
+                'L2': L2
+            }
 
     def switch_repvggplus_to_deploy(self):
         for m in self.modules():
             if hasattr(m, 'switch_to_deploy'):
                 m.switch_to_deploy()
+            if hasattr(m, 'use_checkpoint'):
+                m.use_checkpoint = False        #   Disable checkpoint. I am not sure whether using checkpoint slows down inference.
         if hasattr(self, 'stage1_aux'):
             self.__delattr__('stage1_aux')
         if hasattr(self, 'stage2_aux'):
@@ -244,50 +258,11 @@ class RepVGGplus(nn.Module):
 #   pse for "post SE", which means using SE block after ReLU
 def create_RepVGGplus_L2pse(deploy=False, use_checkpoint=False):
     return RepVGGplus(num_blocks=[8, 14, 24, 1], num_classes=1000,
-                  width_multiplier=[2.5, 2.5, 2.5, 5], deploy=deploy, use_post_se=True,
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_post_se=True,
                       use_checkpoint=use_checkpoint)
 
-#   Will release more
 repvggplus_func_dict = {
-    'RepVGGplus-L2pse': create_RepVGGplus_L2pse,
+'RepVGGplus-L2pse': create_RepVGGplus_L2pse,
 }
-
-def create_RepVGGplus_by_name(name, deploy=False, use_checkpoint=False):
-    if 'plus' in name:
-        return repvggplus_func_dict[name](deploy=deploy, use_checkpoint=use_checkpoint)
-    else:
-        print('=================== Building the vanila RepVGG ===================')
-        from repvgg import get_RepVGG_func_by_name
-        return get_RepVGG_func_by_name(name)(deploy=deploy, use_checkpoint=use_checkpoint)
-
-
-
-
-
-
-#   Use this for converting a RepVGG model or a bigger model with RepVGG as its component
-#   Use like this
-#   model = create_RepVGG_A0(deploy=False)
-#   train model or load weights
-#   repvgg_model_convert(model, save_path='repvgg_deploy.pth')
-#   If you want to preserve the original model, call with do_copy=True
-
-#   ====================== for using RepVGG as the backbone of a bigger model, e.g., PSPNet, the pseudo code will be like
-#   train_backbone = create_RepVGG_B2(deploy=False)
-#   train_backbone.load_state_dict(torch.load('RepVGG-B2-train.pth'))
-#   train_pspnet = build_pspnet(backbone=train_backbone)
-#   segmentation_train(train_pspnet)
-#   deploy_pspnet = repvgg_model_convert(train_pspnet)
-#   segmentation_test(deploy_pspnet)
-#   =====================   example_pspnet.py shows an example
-
-def repvgg_model_convert(model:torch.nn.Module, save_path=None, do_copy=True):
-    import copy
-    if do_copy:
-        model = copy.deepcopy(model)
-    for module in model.modules():
-        if hasattr(module, 'switch_to_deploy'):
-            module.switch_to_deploy()
-    if save_path is not None:
-        torch.save(model.state_dict(), save_path)
-    return model
+def get_RepVGGplus_func_by_name(name):
+    return repvggplus_func_dict[name]

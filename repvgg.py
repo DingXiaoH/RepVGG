@@ -1,8 +1,14 @@
+# --------------------------------------------------------
+# RepVGG: Making VGG-style ConvNets Great Again (https://openaccess.thecvf.com/content/CVPR2021/papers/Ding_RepVGG_Making_VGG-Style_ConvNets_Great_Again_CVPR_2021_paper.pdf)
+# Github source: https://github.com/DingXiaoH/RepVGG
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
 import torch.nn as nn
 import numpy as np
 import torch
 import copy
 from se_block import SEBlock
+import torch.utils.checkpoint as checkpoint
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -28,6 +34,7 @@ class RepVGGBlock(nn.Module):
         self.nonlinearity = nn.ReLU()
 
         if use_se:
+            #   Note that RepVGG-D2se uses SE before nonlinearity. But RepVGGplus models uses SE after nonlinearity.
             self.se = SEBlock(out_channels, internal_neurons=out_channels // 16)
         else:
             self.se = nn.Identity()
@@ -55,7 +62,7 @@ class RepVGGBlock(nn.Module):
         return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
 
-    #   Optional. This improves the accuracy and facilitates quantization.
+    #   Optional. This may improve the accuracy and facilitates quantization in some cases.
     #   1.  Cancel the original weight decay on rbr_dense.conv.weight and rbr_1x1.conv.weight.
     #   2.  Use like this.
     #       loss = criterion(....)
@@ -129,8 +136,6 @@ class RepVGGBlock(nn.Module):
                                      padding=self.rbr_dense.conv.padding, dilation=self.rbr_dense.conv.dilation, groups=self.rbr_dense.conv.groups, bias=True)
         self.rbr_reparam.weight.data = kernel
         self.rbr_reparam.bias.data = bias
-        for para in self.parameters():
-            para.detach_()
         self.__delattr__('rbr_dense')
         self.__delattr__('rbr_1x1')
         if hasattr(self, 'rbr_identity'):
@@ -143,19 +148,16 @@ class RepVGGBlock(nn.Module):
 
 class RepVGG(nn.Module):
 
-    def __init__(self, num_blocks, num_classes=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
+    def __init__(self, num_blocks, num_classes=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False, use_checkpoint=False):
         super(RepVGG, self).__init__()
-
         assert len(width_multiplier) == 4
-
         self.deploy = deploy
         self.override_groups_map = override_groups_map or dict()
-        self.use_se = use_se
-
         assert 0 not in self.override_groups_map
+        self.use_se = use_se
+        self.use_checkpoint = use_checkpoint
 
         self.in_planes = min(64, int(64 * width_multiplier[0]))
-
         self.stage0 = RepVGGBlock(in_channels=3, out_channels=self.in_planes, kernel_size=3, stride=2, padding=1, deploy=self.deploy, use_se=self.use_se)
         self.cur_layer_idx = 1
         self.stage1 = self._make_stage(int(64 * width_multiplier[0]), num_blocks[0], stride=2)
@@ -164,7 +166,6 @@ class RepVGG(nn.Module):
         self.stage4 = self._make_stage(int(512 * width_multiplier[3]), num_blocks[3], stride=2)
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
         self.linear = nn.Linear(int(512 * width_multiplier[3]), num_classes)
-
 
     def _make_stage(self, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -175,14 +176,16 @@ class RepVGG(nn.Module):
                                       stride=stride, padding=1, groups=cur_groups, deploy=self.deploy, use_se=self.use_se))
             self.in_planes = planes
             self.cur_layer_idx += 1
-        return nn.Sequential(*blocks)
+        return nn.ModuleList(blocks)
 
     def forward(self, x):
         out = self.stage0(x)
-        out = self.stage1(out)
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
+        for stage in (self.stage1, self.stage2, self.stage3, self.stage4):
+            for block in stage:
+                if self.use_checkpoint:
+                    out = checkpoint.checkpoint(block, out)
+                else:
+                    out = block(out)
         out = self.gap(out)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
@@ -193,63 +196,63 @@ optional_groupwise_layers = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]
 g2_map = {l: 2 for l in optional_groupwise_layers}
 g4_map = {l: 4 for l in optional_groupwise_layers}
 
-def create_RepVGG_A0(deploy=False):
+def create_RepVGG_A0(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
-                  width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[0.75, 0.75, 0.75, 2.5], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_A1(deploy=False):
+def create_RepVGG_A1(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
-                  width_multiplier=[1, 1, 1, 2.5], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[1, 1, 1, 2.5], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_A2(deploy=False):
+def create_RepVGG_A2(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[2, 4, 14, 1], num_classes=1000,
-                  width_multiplier=[1.5, 1.5, 1.5, 2.75], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[1.5, 1.5, 1.5, 2.75], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B0(deploy=False):
+def create_RepVGG_B0(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[1, 1, 1, 2.5], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[1, 1, 1, 2.5], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B1(deploy=False):
+def create_RepVGG_B1(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2, 2, 2, 4], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[2, 2, 2, 4], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B1g2(deploy=False):
+def create_RepVGG_B1g2(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2, 2, 2, 4], override_groups_map=g2_map, deploy=deploy)
+                  width_multiplier=[2, 2, 2, 4], override_groups_map=g2_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B1g4(deploy=False):
+def create_RepVGG_B1g4(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2, 2, 2, 4], override_groups_map=g4_map, deploy=deploy)
+                  width_multiplier=[2, 2, 2, 4], override_groups_map=g4_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
 
-def create_RepVGG_B2(deploy=False):
+def create_RepVGG_B2(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B2g2(deploy=False):
+def create_RepVGG_B2g2(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=g2_map, deploy=deploy)
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=g2_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B2g4(deploy=False):
+def create_RepVGG_B2g4(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=g4_map, deploy=deploy)
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=g4_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
 
-def create_RepVGG_B3(deploy=False):
+def create_RepVGG_B3(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[3, 3, 3, 5], override_groups_map=None, deploy=deploy)
+                  width_multiplier=[3, 3, 3, 5], override_groups_map=None, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B3g2(deploy=False):
+def create_RepVGG_B3g2(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[3, 3, 3, 5], override_groups_map=g2_map, deploy=deploy)
+                  width_multiplier=[3, 3, 3, 5], override_groups_map=g2_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_B3g4(deploy=False):
+def create_RepVGG_B3g4(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
-                  width_multiplier=[3, 3, 3, 5], override_groups_map=g4_map, deploy=deploy)
+                  width_multiplier=[3, 3, 3, 5], override_groups_map=g4_map, deploy=deploy, use_checkpoint=use_checkpoint)
 
-def create_RepVGG_D2se(deploy=False):
+def create_RepVGG_D2se(deploy=False, use_checkpoint=False):
     return RepVGG(num_blocks=[8, 14, 24, 1], num_classes=1000,
-                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_se=True)
+                  width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_se=True, use_checkpoint=use_checkpoint)
 
 
 func_dict = {

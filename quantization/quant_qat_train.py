@@ -12,6 +12,8 @@ import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
 from utils import *
+import torchvision.transforms as transforms
+import PIL
 
 best_acc1 = 0
 
@@ -130,6 +132,40 @@ def main():
         main_worker(args.gpu, ngpus_per_node, args)
 
 
+
+
+def get_default_train_trans(args):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    if (not hasattr(args, 'resolution')) or args.resolution == 224:
+        trans = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize])
+    else:
+        raise ValueError('Not yet implemented.')
+    return trans
+
+
+def get_default_val_trans(args):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    if (not hasattr(args, 'resolution')) or args.resolution == 224:
+        trans = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize])
+    else:
+        trans = transforms.Compose([
+            transforms.Resize(args.resolution, interpolation=PIL.Image.BILINEAR),
+            transforms.CenterCrop(args.resolution),
+            transforms.ToTensor(),
+            normalize,
+        ])
+    return trans
+
 def main_worker(gpu, ngpus_per_node, args):
     global best_acc1
     args.gpu = gpu
@@ -152,7 +188,7 @@ def main_worker(gpu, ngpus_per_node, args):
     from repvgg import get_RepVGG_func_by_name
     repvgg_build_func = get_RepVGG_func_by_name(args.arch)
     base_model = repvgg_build_func(deploy=True)
-    from insert_bn import directly_insert_bn_without_init
+    from tools.insert_bn import directly_insert_bn_without_init
     directly_insert_bn_without_init(base_model)
     if args.base_weights is not None:
         load_checkpoint(base_model, args.base_weights)
@@ -233,6 +269,7 @@ def main_worker(gpu, ngpus_per_node, args):
 
     cudnn.benchmark = True
 
+    # todo
     train_sampler, train_loader = get_default_ImageNet_train_sampler_loader(args)
     val_loader = get_default_ImageNet_val_loader(args)
 
