@@ -254,7 +254,7 @@ model.load_state_dict(ckpt)
 
 ## Contact
 
-**xiaohding@gmail.com** (The original Tsinghua mailbox dxh17@mails.tsinghua.edu.cn will expire in several months)**
+**xiaohding@gmail.com** (The original Tsinghua mailbox dxh17@mails.tsinghua.edu.cn will expire in several months)
 
 Google Scholar Profile: https://scholar.google.com/citations?user=CIjw0KoAAAAJ&hl=en
 
@@ -268,8 +268,8 @@ The **Structural Re-parameterization Universe**:
 [Scaling Up Your Kernels to 31x31: Revisiting Large Kernel Design in CNNs](https://arxiv.org/abs/2203.06717)\
 [code](https://github.com/DingXiaoH/RepLKNet-pytorch).
 
-2. **RepOptimizer** uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time model is as simple as the inference-time. It also addresses the problem of quantization.
-[Re-parameterizing Your Optimizers rather than Architectures](https://arxiv.org/pdf/2205.15242.pdf)
+2. **RepOptimizer** uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time model is as simple as the inference-time. It also addresses the problem of quantization.\
+[Re-parameterizing Your Optimizers rather than Architectures](https://arxiv.org/pdf/2205.15242.pdf)\
 [code](https://github.com/DingXiaoH/RepOptimizers).
 
 3. RepVGG (CVPR 2021) **A super simple and powerful VGG-style ConvNet architecture**. Up to **84.16%** ImageNet top-1 accuracy!\
