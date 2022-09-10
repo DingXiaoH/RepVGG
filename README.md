@@ -2,17 +2,21 @@
 
 ## Updates (Sep. 1st, 2022)
 
-RepVGG and the methodology of re-parameterization have been used in YOLOv6 and YOLOv7. 
+RepVGG and the methodology of re-parameterization have been used in **YOLOv6** and **YOLOv7**. 
 
 I will completely re-organize this repository and release more models with higher accuracy in this month.
 
 MegEngine version has been included in the MegEngine Basecls model zoo: https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg
 
-## RepVGGplus
+## From RepVGG to RepVGGplus
 
-***Aug 21, 2021*** 
+We have released an improved architecture named RepVGGplus on top of the original version presented in the CVPR-2021 paper.
 
-**VGG is SOTA again! Weights released!**
+1. RepVGGplus is deeper
+
+2. RepVGGplus has auxiliary classifiers, which can also be removed for inference
+
+3. (Optional) RepVGGplus uses Squeeze-and-Excitation blocks to further improve the performance.
 
 Outperformed several recent visual transformers with a top-1 accuracy of **84.16%** and much higher throughput. The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
