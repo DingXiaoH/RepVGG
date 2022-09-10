@@ -1,12 +1,37 @@
 # RepVGG: Making VGG-style ConvNets Great Again (CVPR-2021) (PyTorch)
 
-## Updates (Sep. 1st, 2022)
+## Highlights (Sep. 1st, 2022)
 
 RepVGG and the methodology of re-parameterization have been used in **YOLOv6** and **YOLOv7**. 
 
 I will completely re-organize this repository and release more models with higher accuracy in this month.
 
+## Introduction
+
+This is a super simple ConvNet architecture that achieves over **84% top-1 accuracy on ImageNet** with a VGG-like architecture! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
+
+The MegEngine version: https://github.com/megvii-model/RepVGG.
+
+TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
+
+Another PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls. He also presented detailed benchmarks at https://zcls.readthedocs.io/en/latest/benchmark-repvgg/. Nice work!
+
+Included in a famous model zoo https://github.com/rwightman/pytorch-image-models.
+
+Objax implementation and models by @benjaminjellis. Great work! https://github.com/benjaminjellis/Objax-RepVGG.
+
 MegEngine version has been included in the MegEngine Basecls model zoo: https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg
+
+Citation:
+
+    @inproceedings{ding2021repvgg,
+    title={Repvgg: Making vgg-style convnets great again},
+    author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
+    booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+    pages={13733--13742},
+    year={2021}
+    }
+
 
 ## From RepVGG to RepVGGplus
 
@@ -14,26 +39,81 @@ We have released an improved architecture named RepVGGplus on top of the origina
 
 1. RepVGGplus is deeper
 
-2. RepVGGplus has auxiliary classifiers, which can also be removed for inference
+2. RepVGGplus has auxiliary classifiers during training, which can also be removed for inference
 
 3. (Optional) RepVGGplus uses Squeeze-and-Excitation blocks to further improve the performance.
 
-Outperformed several recent visual transformers with a top-1 accuracy of **84.16%** and much higher throughput. The model is trained with the [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/) in 300 epochs. The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
+RepVGGplus outperformed several recent visual transformers with a top-1 accuracy of **84.06%** and higher throughput. Our training script is based on [codebase of Swin Transformer](https://github.com/microsoft/Swin-Transformer/). The throughput is tested with the Swin codebase as well. We would like to thank the authors of [Swin](https://arxiv.org/abs/2103.14030) for their clean and well-structured code. 
 
 | Model        | Train image size       | Test size  | ImageNet top-1 | Throughput (examples/second), 320, batchsize=128, 2080Ti) |
 | ------------- |:-------------:| -----:| -----:| -----:|
 | RepVGGplus-L2pse    | 256 	|  	320 |   **84.16%**   |**147** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
 
-Compared to RepVGGs, a training-time RepVGGplus model is deeper and has three auxiliary classifiers, which can be removed for inference. Please check ```repvggplus.py```.
+To train or finetune it, slightly change your training code like this:
+```
+        #   Build model and data loader as usual
+        for samples, targets in enumerate(train_data_loader):
+            #   ......
+            outputs = model(samples)                        #   Your original code
+            if type(outputs) is dict:                       
+                #   A training-time RepVGGplus outputs a dict. The items are:
+                    #   'main':     the output of the final layer
+                    #   '*aux*':    the output of auxiliary classifiers
+                loss = 0
+                for name, pred in outputs.items():
+                    if 'aux' in name:
+                        loss += 0.1 * criterion(pred, targets)          #  Assume "criterion" is cross-entropy for classification
+                    else:
+                        loss += criterion(pred, targets)
+            else:
+                loss = criterion(outputs, targets)          #   Your original code
+            #   Backward as usual
+            #   ......
+```
+
+To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer.
+
+
+## Convert a training-time RepVGG into the inference-time structure
+
+For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert the whole model by simply calling **switch_to_deploy** of every RepVGG block. This is the recommended way. Examples are shown in ```tools/convert.py``` and ```example_pspnet.py```.
+```
+    for module in model.modules():
+        if hasattr(module, 'switch_to_deploy'):
+            module.switch_to_deploy()
+```
+
+
+## Use our pretrained model
+
+You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You may test the accuracy by running
+```
+python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
+```
+The default input resolution is 224x224. Here "train" indicates the training-time architecture, and the valid model names include
+```
+RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
+```
+For example,
+```
+python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
+```
+To test the latest model RepVGG-D2se with 320x320 inputs,
+```
+python test.py [imagenet-folder with train and val folders] train RepVGGplus-L2pse-train256-acc84.06 -a RepVGGplus-L2pse -r 320
+```
+
+
+
+
+
 
 Testing it is nothing different from testing a RepVGG:
 ```
 python convert.py RepVGGplus-L2pse-train.pth RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse
 python test.py [imagenet-folder] deploy RepVGGplus-L2pse-deploy.pth -a RepVGGplus-L2pse -r 320
 ```
-
-It has 126M inference-time parameters. The training-time weights file is released at Google Drive and Baidu Cloud. Please check the links below. 
 
 To train or finetune it, slightly change your training code like this:
 ```
@@ -60,51 +140,42 @@ To train or finetune it, slightly change your training code like this:
             #   ......
 ```
 
-To use it for downstream tasks like semantic segmentation, just discard the aux classifiers and the final FC layer. I will release an example in this repo.
-
-***June 22, 2021*** A pure-VGG model (without [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html)) seems to outperform some vision transformer models with a better training scheme. Training.
-
-***June 11, 2021*** An example of using a simple toolbox, torch.quantization, to quantize RepVGG. Please check it below.
+## An optional trick with a custom weight decay
 
 ***June 10, 2021*** Training with the custom weight decay has been tested. Just add ```--custwd``` to the training command.
 
-***June 8, 2021*** found out that high-performance quantization required a custom weight decay. Such a weight decay also improves the full-precision accuracy. Will release the quantized models after tuning the hyper-parameters and finishing the QAT.
+
+## Other released models not presented in the paper
+
+
+## ImageNet training
+
+The original RepVGG models were trained in 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.bias, rbr_dense.bn.weight and rbr_1x1.bn.weight) (weight decay on rbr_identity.weight makes little difference, and it is better to use it in most of the cases), and the same simple data preprocssing as the PyTorch official example:
+```
+            trans = transforms.Compose([
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+```
+
+The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
+We tested this training script with RepVGG-A0 and RepVGG-B1. The accuracy was 72.44 and 78.38, respectively, which was almost the same as (and even better than) the results we reported in the paper (72.41 and 78.37). You may train and test like this:
+```
+python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders] --tag hello --custwd --wd 4e-5
+python test.py [imagenet-folder with train and val folders] train RepVGG-A0_hello_best.pth.tar -a RepVGG-A0
+```
+I would really appreciate it if you share with me your re-implementation results with other models. 
+
+
 
 ***Apr 25, 2021*** A deeper RepVGG model achieves **83.55\% top-1 accuracy on ImageNet** with [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html) blocks and an input resolution of 320x320 (and a wider version achieves **83.67\% accuracy** _without SE_). Note that it is trained with 224x224 but tested with 320x320, so that it is still trainable with a global batch size of 256 on a single machine with 8 1080Ti GPUs. If you test it with 224x224, the top-1 accuracy will be 81.82%. It has 1, 8, 14, 24, 1 layers in the 5 stages respectively. The width multipliers are a=2.5 and b=5 (the same as RepVGG-B2). The model name is "RepVGG-D2se". The code for building the model (repvgg.py) and testing with 320x320 (the testing example below) has been updated and the weights have been released at Google Drive and Baidu Cloud. Please check the links below.
 
-***Apr 4, 2021*** A better implementation. For a RepVGG model or a model with RepVGG as one of its components (e.g., the backbone), you can convert the whole model by simply calling **switch_to_deploy** of every RepVGG block. This is the recommended way. Examples are shown in **convert.py** and **example_pspnet.py**.
-```
-    for module in model.modules():
-        if hasattr(module, 'switch_to_deploy'):
-            module.switch_to_deploy()
-```
+
 ***Apr 4, 2021*** An example of using RepVGG as the backbone of PSPNet for semantic segmentation (**example_pspnet.py**). It shows how to 1) build a PSPNet with RepVGG backbone, 2) load the ImageNet-pretrained weights, 3) convert the whole model with **switch_to_deploy**, 4) save and use the converted model for inference.
 
 ***Jan 13 - Feb 5, 2021*** You can get the equivalent kernel and bias in a differentiable way at any time (get_equivalent_kernel_bias in repvgg.py). This may help training-based pruning or quantization. This training script (a super simple PyTorch-official-example-style script) has been tested with RepVGG-A0 and B1. The results are even slightly better than those reported in the paper.
 
-## Introduction
-
-This is a super simple ConvNet architecture that achieves over **80% top-1 accuracy on ImageNet with a stack of 3x3 conv and ReLU**! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
-
-The MegEngine version: https://github.com/megvii-model/RepVGG.
-
-TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
-
-Another PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls. He also presented detailed benchmarks at https://zcls.readthedocs.io/en/latest/benchmark-repvgg/. Nice work!
-
-Included in a famous model zoo (over 7k stars) https://github.com/rwightman/pytorch-image-models.
-
-Objax implementation and models by @benjaminjellis. Great work! https://github.com/benjaminjellis/Objax-RepVGG.
-
-Citation:
-
-    @inproceedings{ding2021repvgg,
-    title={Repvgg: Making vgg-style convnets great again},
-    author={Ding, Xiaohan and Zhang, Xiangyu and Ma, Ningning and Han, Jungong and Ding, Guiguang and Sun, Jian},
-    booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-    pages={13733--13742},
-    year={2021}
-    }
 
 ## Abstract
 
@@ -114,24 +185,6 @@ We present a simple but powerful architecture of convolutional neural network, w
 ![image](https://github.com/DingXiaoH/RepVGG/blob/main/speed_acc.PNG)
 ![image](https://github.com/DingXiaoH/RepVGG/blob/main/table.PNG)
 
-## Use our pretrained models
-
-You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You may test the accuracy by running
-```
-python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
-```
-The default input resolution is 224x224. Here "train" indicates the training-time architecture, and the valid model names include
-```
-RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
-```
-For example,
-```
-python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
-```
-To test the latest model RepVGG-D2se with 320x320 inputs,
-```
-python test.py [imagenet-folder with train and val folders] train RepVGG-D2se-200epochs-train.pth -a RepVGG-D2se -r 320
-```
 
 
 ## Convert the training-time models into inference-time
@@ -151,23 +204,7 @@ python test.py [imagenet-folder with train and val folders] deploy RepVGG-B2-dep
 Note that the argument "deploy" builds an inference-time model.
 
 
-## ImageNet training
 
-We trained for 120 epochs with cosine learning rate decay from 0.1 to 0. We used 8 GPUs, global batch size of 256, weight decay of 1e-4 (no weight decay on fc.bias, bn.bias, rbr_dense.bn.weight and rbr_1x1.bn.weight) (weight decay on rbr_identity.weight makes little difference, and it is better to use it in most of the cases), and the same simple data preprocssing as the PyTorch official example:
-```
-            trans = transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-```
-The multi-processing training script in this repo is based on the [official PyTorch example](https://github.com/pytorch/examples/blob/master/imagenet/main.py) for the simplicity and better readability. The only modifications include the model-building part, cosine learning rate scheduler, and the SGD optimizer that uses no weight decay on some parameters. You may find these code segments useful for your training code. 
-We tested this training script with RepVGG-A0 and RepVGG-B1. The accuracy was 72.44 and 78.38, respectively, which was almost the same as (and even better than) the results we reported in the paper (72.41 and 78.37). You may train and test like this:
-```
-python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder with train and val folders] --tag hello --custwd --wd 4e-5
-python test.py [imagenet-folder with train and val folders] train RepVGG-A0_hello_best.pth.tar -a RepVGG-A0
-```
-I would really appreciate it if you share with me your re-implementation results with other models. 
             
 
 # Use like this in your own code
