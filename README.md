@@ -168,19 +168,36 @@ I would suggest you use popular frameworks like MMDetection and MMSegmentation. 
 
 ## Quantization
 
-The best solution for quantization is to constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py) to be low-bit (e.g., make every param in {-127, -126, .., 126, 127} for int8), instead of constraining the params of every kernel separately for an ordinary model.
+RepVGG works fine with FP16 but the accuracy may decrease when directly quantized to INT8. 
+
+### RepOptimizer
+
+1. I strongly recommend trying RepOptimizer if quantization is essential to your application. RepOptimizer directly trains a VGG-like model via Gradient Re-parameterization without any structural conversions. Quantizing a VGG-like model trained with RepOptimizer is as easy as quantizing a regular model. RepOptimizer has already been used in YOLOv6.
+
+Paper: https://arxiv.org/abs/2205.15242
+
+Code: https://github.com/DingXiaoH/RepOptimizers
+
+Tutorial provided by the authors of YOLOv6: https://github.com/meituan/YOLOv6/blob/main/docs/tutorial_repopt.md. Great work! Many thanks!
+
+### Custom quantization-aware training
+
+Another choice is is to constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py) to be low-bit (e.g., make every param in {-127, -126, .., 126, 127} for int8), instead of constraining the params of every kernel separately for an ordinary model.
+
+### Use the off-the-shelf toolboxes
+
+(TODO: check and refactor the code of this example)
 
 For the simplicity, we can also use the off-the-shelf quantization toolboxes to quantize RepVGG. We use the simple QAT (quantization-aware training) tool in torch.quantization as an example.
 
-1. The base model is trained with the custom weight decay (```--custwd```) and converted into inference-time structure. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers, and initialize BN.gamma/beta accordingly so that the saved model has the same outputs as the inference-time model. 
+1. Given the base model converted into the inference-time structure. We insert BN after the converted 3x3 conv layers because QAT with torch.quantization requires BN. Specifically, we run the model on ImageNet training set and record the mean/std statistics and use them to initialize the BN layers, and initialize BN.gamma/beta accordingly so that the saved model has the same outputs as the inference-time model. 
 
 ```
-python train.py -a RepVGG-A0 --dist-url 'tcp://127.0.0.1:23333' --dist-backend 'nccl' --multiprocessing-distributed --world-size 1 --rank 0 --workers 32 [imagenet-folder] --tag hello --custwd
-python convert.py RepVGG-A0_hello_best.pth.tar RepVGG-A0_base.pth -a RepVGG-A0 
-python insert_bn.py [imagenet-folder] RepVGG-A0_base.pth RepVGG-A0_withBN.pth -a RepVGG-A0 -b 32 -n 40000
+python quantization/convert.py RepVGG-A0.pth RepVGG-A0_base.pth -a RepVGG-A0 
+python quantization/insert_bn.py [imagenet-folder] RepVGG-A0_base.pth RepVGG-A0_withBN.pth -a RepVGG-A0 -b 32 -n 40000
 ```
 
-2. Build the model, prepare it for QAT (torch.quantization.prepare_qat), and conduct QAT. The hyper-parameters may not be optimal and I am tuning them.
+2. Build the model, prepare it for QAT (torch.quantization.prepare_qat), and conduct QAT. This is only an example and the hyper-parameters may not be optimal.
 ```
 python quantization/quant_qat_train.py [imagenet-folder] -j 32 --epochs 20 -b 256 --lr 1e-3 --weight-decay 4e-5 --base-weights RepVGG-A0_withBN.pth --tag quanttest
 ```
@@ -192,14 +209,7 @@ python quantization/quant_qat_train.py [imagenet-folder] -j 32 --epochs 20 -b 25
 
 **A**: Yes. You can verify that by
 ```
-import torch
-train_model = create_RepVGG_A0(deploy=False)
-train_model.eval()      # Don't forget to call this before inference.
-deploy_model = repvgg_model_convert(train_model)
-x = torch.randn(1, 3, 224, 224)
-train_y = train_model(x)
-deploy_y = deploy_model(x)
-print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
+python tools/verify.py
 ```
 
 **Q**: How to use the pretrained RepVGG models for other tasks?
@@ -215,7 +225,7 @@ print(((train_y - deploy_y) ** 2).sum())    # Will be around 1e-10
 ```
 There is an example in **example_pspnet.py**.
 
-Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (please see step 1 of the quantization part), but the performance may be slightly lower.
+Finetuning with a converted RepVGG also makes sense if you insert a BN after each conv (please see the quantization example), but the performance may be slightly lower.
 
 **Q**: I tried to finetune your model with multiple GPUs but got an error. Why are the names of params like "stage1.0.rbr_dense.conv.weight" in the downloaded weight file but sometimes like "module.stage1.0.rbr_dense.conv.weight" (shown by nn.Module.named_parameters()) in my model?
 
@@ -235,15 +245,11 @@ model.load_state_dict(ckpt)
 **A**: No! More precisely, we do the conversion only once right after training. Then the training-time model can be discarded, and the resultant model only has 3x3 kernels. We only save and use the resultant model.
 
 
+## An optional trick with a custom weight decay (deprecated)
 
+This is deprecated. Please check ```repvggplus_custom_L2.py```. The intuition is to add regularization on the equivalent kernel. It may work in some cases.
 
-
-## An optional trick with a custom weight decay
-
-***June 10, 2021*** Training with the custom weight decay has been tested. Just add ```--custwd``` to the training command.
-
-
-To train or finetune it, slightly change your training code like this:
+The training code should be changed like this:
 ```
         #   Build model and data loader as usual
         for samples, targets in enumerate(train_data_loader):
