@@ -10,17 +10,17 @@ I will completely re-organize this repository and release more models with highe
 
 This is a super simple ConvNet architecture that achieves over **84% top-1 accuracy on ImageNet** with a VGG-like architecture! This repo contains the **pretrained models**, code for building the model, training, and the conversion from training-time model to inference-time, and **an example of using RepVGG for semantic segmentation**.
 
-The MegEngine version: https://github.com/megvii-model/RepVGG.
+[The MegEngine version](https://github.com/megvii-model/RepVGG)
 
-TensorRT implemention with C++ API by @upczww https://github.com/upczww/TensorRT-RepVGG. Great work!
+[TensorRT implemention with C++ API by @upczww](https://github.com/upczww/TensorRT-RepVGG). Great work!
 
-Another PyTorch implementation by @zjykzj https://github.com/ZJCV/ZCls. He also presented detailed benchmarks at https://zcls.readthedocs.io/en/latest/benchmark-repvgg/. Nice work!
+[Another PyTorch implementation by @zjykzj](https://github.com/ZJCV/ZCls). He also presented detailed benchmarks [here](https://zcls.readthedocs.io/en/latest/benchmark-repvgg/). Nice work!
 
-Included in a famous model zoo https://github.com/rwightman/pytorch-image-models.
+Included in a famous PyTorch model zoo https://github.com/rwightman/pytorch-image-models.
 
-Objax implementation and models by @benjaminjellis. Great work! https://github.com/benjaminjellis/Objax-RepVGG.
+[Objax implementation and models by @benjaminjellis](https://github.com/benjaminjellis/Objax-RepVGG). Great work!
 
-MegEngine version has been included in the MegEngine Basecls model zoo: https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg
+Included in the [MegEngine Basecls model zoo](https://github.com/megvii-research/basecls/tree/main/zoo/public/repvgg).
 
 Citation:
 
@@ -89,23 +89,15 @@ For a RepVGG model or a model with RepVGG as one of its components (e.g., the ba
 
 You may download _all_ of the ImageNet-pretrained models reported in the paper from Google Drive (https://drive.google.com/drive/folders/1Avome4KvNp0Lqh2QwhXO6L5URQjzCjUq?usp=sharing) or Baidu Cloud (https://pan.baidu.com/s/1nCsZlMynnJwbUBKn0ch7dQ, the access code is "rvgg"). For the ease of transfer learning on other tasks, they are all training-time models (with identity and 1x1 branches). You may test the accuracy by running
 ```
-python test.py [imagenet-folder with train and val folders] train [path to weights file] -a [model name]
+python -m torch.distributed.launch --nproc_per_node 1 --master_port 12349 main.py --arch [model name] --data-path [/path/to/imagenet] --batch-size 32 --tag test --eval --resume [path to weights file] --opts DATA.DATASET imagenet DATA.IMG_SIZE [224 or 320]
 ```
-The default input resolution is 224x224. Here "train" indicates the training-time architecture, and the valid model names include
+The valid model names include
 ```
-RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
-```
-For example,
-```
-python test.py [imagenet-folder with train and val folders] train RepVGG-B2-train.pth -a RepVGG-B2
-```
-To test the latest model RepVGG-D2se with 320x320 inputs,
-```
-python test.py [imagenet-folder with train and val folders] train RepVGGplus-L2pse-train256-acc84.06 -a RepVGGplus-L2pse -r 320
+RepVGGplus-L2pse, RepVGG-A0, RepVGG-A1, RepVGG-A2, RepVGG-B0, RepVGG-B1, RepVGG-B1g2, RepVGG-B1g4, RepVGG-B2, RepVGG-B2g2, RepVGG-B2g4, RepVGG-B3, RepVGG-B3g2, RepVGG-B3g4
 ```
 
 
-
+python3 -m torch.distributed.launch --nproc_per_node 8 --master_port 12349 main.py --arch RepVGGplus-L2pse --batch-size 32 --tag test --output-dir /apdcephfs_cq2/share_1290939/xiaohanding/swin_exps/RepVGGplus-L2pse_test --opts TRAIN.EPOCHS 120 TRAIN.BASE_LR 0.1 TRAIN.WEIGHT_DECAY 4e-5 TRAIN.WARMUP_EPOCHS 5 MODEL.LABEL_SMOOTHING 0.1 AUG.PRESET raug15 DATA.DATASET imagenet
 
 
 
