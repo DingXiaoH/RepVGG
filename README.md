@@ -2,9 +2,9 @@
 
 ## Highlights (Sep. 1st, 2022)
 
-RepVGG and the methodology of re-parameterization have been used in **YOLOv6** and **YOLOv7**. 
+RepVGG and the methodology of re-parameterization have been used in **YOLOv6** ([paper](https://arxiv.org/abs/2209.02976), [code](https://github.com/meituan/YOLOv6))  and **YOLOv7** ([paper](https://arxiv.org/abs/2207.02696), [code](https://github.com/WongKinYiu/yolov7)). 
 
-I will completely re-organize this repository and release more models with higher accuracy in this month.
+I have re-organize this repository and will release more models with higher accuracy in this month.
 
 ## Introduction
 
@@ -142,7 +142,7 @@ The original RepVGG models were trained in 120 epochs with cosine learning rate 
 ***Apr 25, 2021*** A deeper RepVGG model achieves **83.55\% top-1 accuracy on ImageNet** with [SE](https://openaccess.thecvf.com/content_cvpr_2018/html/Hu_Squeeze-and-Excitation_Networks_CVPR_2018_paper.html) blocks and an input resolution of 320x320 (and a wider version achieves **83.67\% accuracy** _without SE_). Note that it is trained with 224x224 but tested with 320x320, so that it is still trainable with a global batch size of 256 on a single machine with 8 1080Ti GPUs. If you test it with 224x224, the top-1 accuracy will be 81.82%. It has 1, 8, 14, 24, 1 layers in the 5 stages respectively. The width multipliers are a=2.5 and b=5 (the same as RepVGG-B2). The model name is "RepVGG-D2se". The code for building the model (repvgg.py) and testing with 320x320 (the testing example below) has been updated and the weights have been released at Google Drive and Baidu Cloud. Please check the links below.
 
 
-# Example 1: use Structural Re-parameterization like this in your own code
+## Example 1: use Structural Re-parameterization like this in your own code
 ```
 from repvgg import repvgg_model_convert, create_RepVGG_A0
 train_model = create_RepVGG_A0(deploy=False)
@@ -172,7 +172,7 @@ RepVGG works fine with FP16 but the accuracy may decrease when directly quantize
 
 ### RepOptimizer
 
-1. I strongly recommend trying RepOptimizer if quantization is essential to your application. RepOptimizer directly trains a VGG-like model via Gradient Re-parameterization without any structural conversions. Quantizing a VGG-like model trained with RepOptimizer is as easy as quantizing a regular model. RepOptimizer has already been used in YOLOv6.
+I strongly recommend trying RepOptimizer if quantization is essential to your application. RepOptimizer directly trains a VGG-like model via Gradient Re-parameterization without any structural conversions. Quantizing a VGG-like model trained with RepOptimizer is as easy as quantizing a regular model. RepOptimizer has already been used in YOLOv6.
 
 Paper: https://arxiv.org/abs/2205.15242
 
