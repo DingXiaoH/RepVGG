@@ -172,9 +172,9 @@ I would suggest you use popular frameworks like MMDetection and MMSegmentation. 
 
 ## Quantization
 
-RepVGG works fine with FP16 but the accuracy may decrease when directly quantized to INT8. 
+RepVGG works fine with FP16 but the accuracy may decrease when directly quantized to INT8. If IN8 quantization is essential to your application, we suggest three practical solutions.
 
-### RepOptimizer
+### Solution A: RepOptimizer
 
 I strongly recommend trying RepOptimizer if quantization is essential to your application. RepOptimizer directly trains a VGG-like model via Gradient Re-parameterization without any structural conversions. Quantizing a VGG-like model trained with RepOptimizer is as easy as quantizing a regular model. RepOptimizer has already been used in YOLOv6.
 
@@ -184,11 +184,11 @@ Code: https://github.com/DingXiaoH/RepOptimizers
 
 Tutorial provided by the authors of YOLOv6: https://github.com/meituan/YOLOv6/blob/main/docs/tutorial_repopt.md. Great work! Many thanks!
 
-### Custom quantization-aware training
+### Solution B: custom quantization-aware training
 
 Another choice is is to constrain the equivalent kernel (get_equivalent_kernel_bias() in repvgg.py) to be low-bit (e.g., make every param in {-127, -126, .., 126, 127} for int8), instead of constraining the params of every kernel separately for an ordinary model.
 
-### Use the off-the-shelf toolboxes
+### Solution C: use the off-the-shelf toolboxes
 
 (TODO: check and refactor the code of this example)
 
