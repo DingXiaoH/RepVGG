@@ -4,7 +4,7 @@
 
 RepVGG and the methodology of re-parameterization have been used in **YOLOv6** ([paper](https://arxiv.org/abs/2209.02976), [code](https://github.com/meituan/YOLOv6))  and **YOLOv7** ([paper](https://arxiv.org/abs/2207.02696), [code](https://github.com/WongKinYiu/yolov7)). 
 
-I have re-organize this repository and will release more models with higher accuracy in this month.
+I have re-organized this repository and released the RepVGGplus-L2pse model with 84.06% ImageNet accuracy. Will release more RepVGGplus models in this month.
 
 ## Introduction
 
@@ -49,6 +49,10 @@ RepVGGplus outperformed several recent visual transformers with a top-1 accuracy
 | ------------- |:-------------:| -----:| -----:| -----:|
 | RepVGGplus-L2pse    | 256 	|  	320 |   **84.06%**   |**147** |
 | Swin Transformer | 320    |   320 |   84.0%     |102 |
+
+("pse" means Squeeze-and-Excitation blocks after ReLU.)
+
+Download this model: [Google Drive](https://drive.google.com/file/d/1x8VNLpfuLzg0xXDVIZv9yIIgqnSMoK-W/view?usp=sharing) or [Baidu Cloud](https://pan.baidu.com/s/19YwKCTSPVgJu5Ueg0Q78-w?pwd=rvgg).
 
 To train or finetune it, slightly change your training code like this:
 ```
@@ -249,6 +253,8 @@ model.load_state_dict(ckpt)
 
 This is deprecated. Please check ```repvggplus_custom_L2.py```. The intuition is to add regularization on the equivalent kernel. It may work in some cases.
 
+The trained model can be downloaded at [Google Drive](https://drive.google.com/file/d/14I1jWU4rS4y0wdxm03SnEVP1Tx6GGfKu/view?usp=sharing) or [Baidu Cloud](https://pan.baidu.com/s/1qFGmgJ6Ir6W3wAcCBQb9-w?pwd=rvgg)
+
 The training code should be changed like this:
 ```
         #   Build model and data loader as usual
@@ -276,8 +282,6 @@ The training code should be changed like this:
 
 
 
-
-
 ## Contact
 
 **xiaohding@gmail.com** (The original Tsinghua mailbox dxh17@mails.tsinghua.edu.cn will expire in several months)
@@ -294,7 +298,7 @@ The **Structural Re-parameterization Universe**:
 [Scaling Up Your Kernels to 31x31: Revisiting Large Kernel Design in CNNs](https://arxiv.org/abs/2203.06717)\
 [code](https://github.com/DingXiaoH/RepLKNet-pytorch).
 
-2. **RepOptimizer** uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time model is as simple as the inference-time. It also addresses the problem of quantization.\
+2. **RepOptimizer** uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time model is as simple as the inference-time. It also addresses the problem of quantization. **It has already been used in YOLOv6.** \
 [Re-parameterizing Your Optimizers rather than Architectures](https://arxiv.org/pdf/2205.15242.pdf)\
 [code](https://github.com/DingXiaoH/RepOptimizers).
 
