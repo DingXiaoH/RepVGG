@@ -298,7 +298,7 @@ The **Structural Re-parameterization Universe**:
 [Scaling Up Your Kernels to 31x31: Revisiting Large Kernel Design in CNNs](https://arxiv.org/abs/2203.06717)\
 [code](https://github.com/DingXiaoH/RepLKNet-pytorch).
 
-2. **RepOptimizer** uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time model is as simple as the inference-time. It also addresses the problem of quantization. **It has already been used in YOLOv6.** \
+2. **RepOptimizer** (ICLR 2023) uses **Gradient Re-parameterization** to train powerful models efficiently. The training-time **RepOpt-VGG** is **as simple as the inference-time**. It also addresses the problem of quantization.\
 [Re-parameterizing Your Optimizers rather than Architectures](https://arxiv.org/pdf/2205.15242.pdf)\
 [code](https://github.com/DingXiaoH/RepOptimizers).
 
